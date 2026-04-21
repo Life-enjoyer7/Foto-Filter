@@ -188,8 +188,8 @@ void applyFilter(const IplImage *src, IplImage *dst, const Filter *f)
     int w = src->width;
     int h = src->height;
     int step = src->widthStep;
-    /
-        int channels = src->nChannels;
+
+    int channels = src->nChannels;
 
     const unsigned char *src_data = (const unsigned char *)src->imageData;
     unsigned char *dst_data = (unsigned char *)dst->imageData;
@@ -405,22 +405,26 @@ static void *processRowRange(void *args)
 
 void applyFilterParallelByRows(const IplImage *src, IplImage *dst, const Filter *f)
 {
-
+    // Обнуляем изображение
     cvZero(dst);
 
     int w = src->width;
     int h = src->height;
 
+    // Определяем количество потоков (по числу ядер)
     int numThreads = sysconf(_SC_NPROCESSORS_ONLN);
     if (numThreads <= 0)
         numThreads = 4;
 
+    // Ограничиваем число потоков высотой изображения
     if (numThreads > h)
         numThreads = h;
 
+    // Сколько строк обрабатывает каждый поток
     int rowsPerThread = h / numThreads;
     int remainder = h % numThreads;
 
+    // Создаём потоки
     pthread_t threads[numThreads];
     ThreadArgsRows args[numThreads];
 
@@ -440,6 +444,7 @@ void applyFilterParallelByRows(const IplImage *src, IplImage *dst, const Filter 
         pthread_create(&threads[t], NULL, processRowRange, &args[t]);
     }
 
+    // Ждём завершения всех потоков
     for (int t = 0; t < numThreads; t++)
     {
         pthread_join(threads[t], NULL);
@@ -457,6 +462,7 @@ typedef struct
     int endCol;
 } ThreadArgsCols;
 
+// Функция для потоковой обработки по столбцам
 static void *processColRange(void *args)
 {
     ThreadArgsCols *a = (ThreadArgsCols *)args;
@@ -513,22 +519,26 @@ static void *processColRange(void *args)
 
 void applyFilterParallelByCols(const IplImage *src, IplImage *dst, const Filter *f)
 {
-
+    // Обнуляем изображение
     cvZero(dst);
 
     int w = src->width;
     int h = src->height;
 
+    // Определяем количество потоков (по числу ядер)
     int numThreads = sysconf(_SC_NPROCESSORS_ONLN);
     if (numThreads <= 0)
         numThreads = 4;
 
+    // Ограничиваем число потоков шириной изображения
     if (numThreads > w)
         numThreads = w;
 
+    // Сколько столбцов обрабатывает каждый поток
     int colsPerThread = w / numThreads;
     int remainder = w % numThreads;
 
+    // Создаём потоки
     pthread_t threads[numThreads];
     ThreadArgsCols args[numThreads];
 
