@@ -37,5 +37,7 @@ Filter filter_emboss2(void);
 
 // Применение фильтра
 void applyFilter(const IplImage *src, IplImage *dst, const Filter *f);
-
+void applyFilterParallelPixelwise(const IplImage *src, IplImage *dst, const Filter *f);
+void applyFilterParallelByRows(const IplImage *src, IplImage *dst, const Filter *f);
+void applyFilterParallelByCols(const IplImage *src, IplImage *dst, const Filter *f);
 #endif

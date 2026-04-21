@@ -1,5 +1,6 @@
 #include "filter.h"
 #include <pthread.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -12,7 +13,6 @@
 #undef MAX
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
-// ========== Конструктор и деструктор ==========
 
 Filter filter_create(int w, int h, double *data, double f, double b)
 {
@@ -47,8 +47,6 @@ void filter_free(Filter *f)
         f->matrix = NULL;
     }
 }
-
-// ========== Фильтры ==========
 
 Filter filter_identity(void)
 {
@@ -184,15 +182,14 @@ Filter filter_emboss2(void)
     return filter_create(5, 5, &kernel[0][0], 1.0, 128.0);
 }
 
-// ========== Применение фильтра ==========
-
 void applyFilter(const IplImage *src, IplImage *dst, const Filter *f)
 {
     cvZero(dst);
     int w = src->width;
     int h = src->height;
-    int step = src->widthStep;     // байт на строку
-    int channels = src->nChannels; // обычно 3
+    int step = src->widthStep;
+    /
+        int channels = src->nChannels;
 
     const unsigned char *src_data = (const unsigned char *)src->imageData;
     unsigned char *dst_data = (unsigned char *)dst->imageData;
@@ -231,5 +228,328 @@ void applyFilter(const IplImage *src, IplImage *dst, const Filter *f)
             out[1] = (unsigned char)g;
             out[2] = (unsigned char)r;
         }
+    }
+}
+
+typedef struct
+{
+    const IplImage *src;
+    IplImage *dst;
+    const Filter *f;
+    int w;
+    int h;
+    int startIdx;
+    int endIdx;
+} ThreadArgs;
+
+static void *processPixelRange(void *args)
+{
+    ThreadArgs *a = (ThreadArgs *)args;
+    const IplImage *src = a->src;
+    IplImage *dst = a->dst;
+    const Filter *f = a->f;
+    int w = a->w;
+    int h = a->h;
+    int startIdx = a->startIdx;
+    int endIdx = a->endIdx;
+
+    int step = src->widthStep;
+    int channels = src->nChannels;
+    const unsigned char *src_data = (const unsigned char *)src->imageData;
+    unsigned char *dst_data = (unsigned char *)dst->imageData;
+
+    for (int idx = startIdx; idx < endIdx; idx++)
+    {
+        int y = idx / w;
+        int x = idx % w;
+
+        double red = 0.0, green = 0.0, blue = 0.0;
+
+        for (int fy = 0; fy < f->height; fy++)
+        {
+            for (int fx = 0; fx < f->width; fx++)
+            {
+                int ix = (x - f->width / 2 + fx + w) % w;
+                int iy = (y - f->height / 2 + fy + h) % h;
+
+                // Прямой доступ к пикселю
+                const unsigned char *pixel = src_data + iy * step + ix * channels;
+                blue += pixel[0] * f->matrix[fy][fx];
+                green += pixel[1] * f->matrix[fy][fx];
+                red += pixel[2] * f->matrix[fy][fx];
+            }
+        }
+
+        int r = (int)(f->factor * red + f->bias);
+        int g = (int)(f->factor * green + f->bias);
+        int b = (int)(f->factor * blue + f->bias);
+
+        r = (r < 0) ? 0 : (r > 255 ? 255 : r);
+        g = (g < 0) ? 0 : (g > 255 ? 255 : g);
+        b = (b < 0) ? 0 : (b > 255 ? 255 : b);
+
+        unsigned char *out = dst_data + y * step + x * channels;
+        out[0] = (unsigned char)b;
+        out[1] = (unsigned char)g;
+        out[2] = (unsigned char)r;
+    }
+
+    return NULL;
+}
+
+void applyFilterParallelPixelwise(const IplImage *src, IplImage *dst, const Filter *f)
+{
+
+    cvZero(dst);
+
+    int w = src->width;
+    int h = src->height;
+    int totalPixels = w * h;
+
+    int numThreads = sysconf(_SC_NPROCESSORS_ONLN);
+    if (numThreads <= 0)
+        numThreads = 4;
+
+    int pixelsPerThread = totalPixels / numThreads;
+    int remainder = totalPixels % numThreads;
+
+    pthread_t threads[numThreads];
+    ThreadArgs args[numThreads];
+
+    for (int t = 0; t < numThreads; t++)
+    {
+        int startIdx = t * pixelsPerThread + (t < remainder ? t : remainder);
+        int endIdx = startIdx + pixelsPerThread + (t < remainder ? 1 : 0);
+
+        args[t].src = src;
+        args[t].dst = dst;
+        args[t].f = f;
+        args[t].w = w;
+        args[t].h = h;
+        args[t].startIdx = startIdx;
+        args[t].endIdx = endIdx;
+
+        pthread_create(&threads[t], NULL, processPixelRange, &args[t]);
+    }
+
+    for (int t = 0; t < numThreads; t++)
+    {
+        pthread_join(threads[t], NULL);
+    }
+}
+
+typedef struct
+{
+    const IplImage *src;
+    IplImage *dst;
+    const Filter *f;
+    int w;
+    int h;
+    int startRow;
+    int endRow;
+} ThreadArgsRows;
+
+static void *processRowRange(void *args)
+{
+    ThreadArgsRows *a = (ThreadArgsRows *)args;
+    const IplImage *src = a->src;
+    IplImage *dst = a->dst;
+    const Filter *f = a->f;
+    int w = a->w;
+    int h = a->h;
+    int startRow = a->startRow;
+    int endRow = a->endRow;
+
+    int step = src->widthStep;
+    int channels = src->nChannels;
+    const unsigned char *src_data = (const unsigned char *)src->imageData;
+    unsigned char *dst_data = (unsigned char *)dst->imageData;
+
+    for (int y = startRow; y < endRow; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            double red = 0.0, green = 0.0, blue = 0.0;
+
+            for (int fy = 0; fy < f->height; fy++)
+            {
+                for (int fx = 0; fx < f->width; fx++)
+                {
+                    int ix = (x - f->width / 2 + fx + w) % w;
+                    int iy = (y - f->height / 2 + fy + h) % h;
+
+                    const unsigned char *pixel = src_data + iy * step + ix * channels;
+                    blue += pixel[0] * f->matrix[fy][fx];
+                    green += pixel[1] * f->matrix[fy][fx];
+                    red += pixel[2] * f->matrix[fy][fx];
+                }
+            }
+
+            int r = (int)(f->factor * red + f->bias);
+            int g = (int)(f->factor * green + f->bias);
+            int b = (int)(f->factor * blue + f->bias);
+
+            r = (r < 0) ? 0 : (r > 255 ? 255 : r);
+            g = (g < 0) ? 0 : (g > 255 ? 255 : g);
+            b = (b < 0) ? 0 : (b > 255 ? 255 : b);
+
+            unsigned char *out = dst_data + y * step + x * channels;
+            out[0] = (unsigned char)b;
+            out[1] = (unsigned char)g;
+            out[2] = (unsigned char)r;
+        }
+    }
+
+    return NULL;
+}
+
+void applyFilterParallelByRows(const IplImage *src, IplImage *dst, const Filter *f)
+{
+
+    cvZero(dst);
+
+    int w = src->width;
+    int h = src->height;
+
+    int numThreads = sysconf(_SC_NPROCESSORS_ONLN);
+    if (numThreads <= 0)
+        numThreads = 4;
+
+    if (numThreads > h)
+        numThreads = h;
+
+    int rowsPerThread = h / numThreads;
+    int remainder = h % numThreads;
+
+    pthread_t threads[numThreads];
+    ThreadArgsRows args[numThreads];
+
+    for (int t = 0; t < numThreads; t++)
+    {
+        int startRow = t * rowsPerThread + (t < remainder ? t : remainder);
+        int endRow = startRow + rowsPerThread + (t < remainder ? 1 : 0);
+
+        args[t].src = src;
+        args[t].dst = dst;
+        args[t].f = f;
+        args[t].w = w;
+        args[t].h = h;
+        args[t].startRow = startRow;
+        args[t].endRow = endRow;
+
+        pthread_create(&threads[t], NULL, processRowRange, &args[t]);
+    }
+
+    for (int t = 0; t < numThreads; t++)
+    {
+        pthread_join(threads[t], NULL);
+    }
+}
+
+typedef struct
+{
+    const IplImage *src;
+    IplImage *dst;
+    const Filter *f;
+    int w;
+    int h;
+    int startCol;
+    int endCol;
+} ThreadArgsCols;
+
+static void *processColRange(void *args)
+{
+    ThreadArgsCols *a = (ThreadArgsCols *)args;
+    const IplImage *src = a->src;
+    IplImage *dst = a->dst;
+    const Filter *f = a->f;
+    int w = a->w;
+    int h = a->h;
+    int startCol = a->startCol;
+    int endCol = a->endCol;
+
+    int step = src->widthStep;
+    int channels = src->nChannels;
+    const unsigned char *src_data = (const unsigned char *)src->imageData;
+    unsigned char *dst_data = (unsigned char *)dst->imageData;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = startCol; x < endCol; x++)
+        {
+            double red = 0.0, green = 0.0, blue = 0.0;
+
+            for (int fy = 0; fy < f->height; fy++)
+            {
+                for (int fx = 0; fx < f->width; fx++)
+                {
+                    int ix = (x - f->width / 2 + fx + w) % w;
+                    int iy = (y - f->height / 2 + fy + h) % h;
+
+                    const unsigned char *pixel = src_data + iy * step + ix * channels;
+                    blue += pixel[0] * f->matrix[fy][fx];
+                    green += pixel[1] * f->matrix[fy][fx];
+                    red += pixel[2] * f->matrix[fy][fx];
+                }
+            }
+
+            int r = (int)(f->factor * red + f->bias);
+            int g = (int)(f->factor * green + f->bias);
+            int b = (int)(f->factor * blue + f->bias);
+
+            r = (r < 0) ? 0 : (r > 255 ? 255 : r);
+            g = (g < 0) ? 0 : (g > 255 ? 255 : g);
+            b = (b < 0) ? 0 : (b > 255 ? 255 : b);
+
+            unsigned char *out = dst_data + y * step + x * channels;
+            out[0] = (unsigned char)b;
+            out[1] = (unsigned char)g;
+            out[2] = (unsigned char)r;
+        }
+    }
+
+    return NULL;
+}
+
+void applyFilterParallelByCols(const IplImage *src, IplImage *dst, const Filter *f)
+{
+
+    cvZero(dst);
+
+    int w = src->width;
+    int h = src->height;
+
+    int numThreads = sysconf(_SC_NPROCESSORS_ONLN);
+    if (numThreads <= 0)
+        numThreads = 4;
+
+    if (numThreads > w)
+        numThreads = w;
+
+    int colsPerThread = w / numThreads;
+    int remainder = w % numThreads;
+
+    pthread_t threads[numThreads];
+    ThreadArgsCols args[numThreads];
+
+    for (int t = 0; t < numThreads; t++)
+    {
+        int startCol = t * colsPerThread + (t < remainder ? t : remainder);
+        int endCol = startCol + colsPerThread + (t < remainder ? 1 : 0);
+
+        args[t].src = src;
+        args[t].dst = dst;
+        args[t].f = f;
+        args[t].w = w;
+        args[t].h = h;
+        args[t].startCol = startCol;
+        args[t].endCol = endCol;
+
+        pthread_create(&threads[t], NULL, processColRange, &args[t]);
+    }
+
+    for (int t = 0; t < numThreads; t++)
+    {
+        pthread_join(threads[t], NULL);
     }
 }
