@@ -40,4 +40,5 @@ void applyFilter(const IplImage *src, IplImage *dst, const Filter *f);
 void applyFilterParallelPixelwise(const IplImage *src, IplImage *dst, const Filter *f);
 void applyFilterParallelByRows(const IplImage *src, IplImage *dst, const Filter *f);
 void applyFilterParallelByCols(const IplImage *src, IplImage *dst, const Filter *f);
+void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst, const Filter *f, int blockW, int BlockH);
 #endif
