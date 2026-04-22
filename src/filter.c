@@ -643,7 +643,7 @@ static void *processBlock(void *args)
     return NULL;
 }
 
-void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst, const Filter *f, int blockW, int blockH)
+void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst, const Filter *f, int blockW = 64, int blockH = 64)
 {
     cvZero(dst);
 
@@ -687,4 +687,19 @@ void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst, const Filte
 
     for (int t = 0; t < numThreads; t++)
         pthread_join(threads[t], NULL);
+}
+
+void applyFilterParallelByBlocks32(const IplImage *src, IplImage *dst, const Filter *f)
+{
+    applyFilterParallelByBlocks(src, dst, f, 32, 32);
+}
+
+void applyFilterParallelByBlocks64(const IplImage *src, IplImage *dst, const Filter *f)
+{
+    applyFilterParallelByBlocks(src, dst, f, 64, 64);
+}
+
+void applyFilterParallelByBlocks128(const IplImage *src, IplImage *dst, const Filter *f)
+{
+    applyFilterParallelByBlocks(src, dst, f, 128, 128);
 }

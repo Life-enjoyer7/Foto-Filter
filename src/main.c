@@ -45,11 +45,14 @@ int main(int argc, char *argv[])
     filters[13] = filter_emboss2();
     filters[14] = filter_identity();
 
-    void (*strategies[4])(const IplImage *, IplImage *, const Filter *) = {
+    void (*strategies[7])(const IplImage *, IplImage *, const Filter *) = {
         applyFilter,
         applyFilterParallelPixelwise,
         applyFilterParallelByRows,
-        applyFilterParallelByCols};
+        applyFilterParallelByCols,
+        applyFilterParallelByBlocks32,
+        applyFilterParallelByBlocks64,
+        applyFilterParallelByBlocks128};
 
     static struct option long_options[] = {
         {"filter", required_argument, 0, 'f'},
@@ -90,7 +93,7 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    if (strategyId < 0 || strategyId >= 4)
+    if (strategyId < 0 || strategyId >= 8)
     {
         printf("Error: Invalid strategy ID (0-3)\n");
         return 1;

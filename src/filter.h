@@ -41,4 +41,9 @@ void applyFilterParallelPixelwise(const IplImage *src, IplImage *dst, const Filt
 void applyFilterParallelByRows(const IplImage *src, IplImage *dst, const Filter *f);
 void applyFilterParallelByCols(const IplImage *src, IplImage *dst, const Filter *f);
 void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst, const Filter *f, int blockW, int BlockH);
+
+// для main
+void applyFilterParallelByBlocks32(const IplImage *src, IplImage *dst, const Filter *f);
+void applyFilterParallelByBlocks64(const IplImage *src, IplImage *dst, const Filter *f);
+void applyFilterParallelByBlocks128(const IplImage *src, IplImage *dst, const Filter *f);
 #endif
