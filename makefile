@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -g  -O3 -march=native
+CFLAGS = -Wall -g -O2
 INCLUDES = -I src -I/usr/local/opencv3.4/include
 
 OPENCV_LIBS = -L/usr/local/opencv3.4/lib \
@@ -22,22 +22,21 @@ NAME_TEST = tests
 
 OPENCV_LIB_PATH = /usr/local/opencv3.4/lib
 
-run: $(BUILD_DIR)/$(NAME)
-	export LD_LIBRARY_PATH=$(OPENCV_LIB_PATH):$$LD_LIBRARY_PATH && $(BUILD_DIR)/$(NAME)
+
+build: $(BUILD_DIR)/$(NAME)
 
 test: $(BUILD_DIR)/$(NAME_TEST)
 	export LD_LIBRARY_PATH=$(OPENCV_LIB_PATH):$$LD_LIBRARY_PATH && $(BUILD_DIR)/$(NAME_TEST)
 
-$(BUILD_DIR)/$(NAME): $(MAIN_PATH) $(FILTER_PATH) | $(BUILD_DIR)
+$(BUILD_DIR)/$(NAME): $(MAIN_PATH) $(FILTER_PATH)
+	mkdir -p $(BUILD_DIR)
 	$(CC) $(MAIN_PATH) $(FILTER_PATH) $(CFLAGS) $(INCLUDES) $(OPENCV_LIBS) $(GTKFLAGS) $(PTHREADFLAGS) $(MATHFLAGS) -o $@
 
-$(BUILD_DIR)/$(NAME_TEST): $(TEST_PATH) $(FILTER_PATH) | $(BUILD_DIR)
+$(BUILD_DIR)/$(NAME_TEST): $(TEST_PATH) $(FILTER_PATH)
+	mkdir -p $(BUILD_DIR)
 	$(CC) $(TEST_PATH) $(FILTER_PATH) $(CFLAGS) $(INCLUDES) $(OPENCV_LIBS) $(PTHREADFLAGS) $(MATHFLAGS) -o $@
 
 clean:
 	rm -rf $(BUILD_DIR)
 
-$(BUILD_DIR):
-	mkdir -p $@
-
-.PHONY: run test clean
+.PHONY: build test clean

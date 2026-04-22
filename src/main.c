@@ -1,27 +1,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <gtk/gtk.h>
+#include <time.h>
+#include <getopt.h>
 #include <opencv2/core/core_c.h>
 #include <opencv2/imgproc/imgproc_c.h>
 #include <opencv2/highgui/highgui_c.h>
 #include "filter.h"
 
-// Определим константы, если их нет
 #ifndef CV_LOAD_IMAGE_COLOR
 #define CV_LOAD_IMAGE_COLOR 1
 #endif
 
 #define NUM_FILTERS 15
 
+double get_time_ms(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return ts.tv_sec * 1000.0 + ts.tv_nsec / 1000000.0;
+};
+
 int main(int argc, char *argv[])
 {
-    char pass[100] = "";
-    int filter;
-
-    printf("Инициализация GTK...\n");
-    gtk_init(&argc, &argv);
-    printf("GTK инициализирован\n");
+    int filterId = -1;
+    int strategyId = -1;
+    char *load_path = NULL;
+    char *save_path = NULL;
 
     Filter filters[NUM_FILTERS];
     filters[0] = filter_blur3x3();
@@ -40,96 +45,94 @@ int main(int argc, char *argv[])
     filters[13] = filter_emboss2();
     filters[14] = filter_identity();
 
-    char *filename_open = NULL;
+    void (*strategies[4])(const IplImage *, IplImage *, const Filter *) = {
+        applyFilter,
+        applyFilterParallelPixelwise,
+        applyFilterParallelByRows,
+        applyFilterParallelByCols};
 
-    while (strcmp(pass, "exit") != 0)
+    static struct option long_options[] = {
+        {"filter", required_argument, 0, 'f'},
+        {"tactic", required_argument, 0, 't'},
+        {"src", required_argument, 0, 's'},
+        {"out", required_argument, 0, 'o'},
+        {0, 0, 0, 0}};
+
+    int c;
+    int option_index = 0;
+
+    while ((c = getopt_long(argc, argv, "f:t:s:o:", long_options, &option_index)) != -1)
     {
-        GtkWidget *dialog_open = gtk_file_chooser_dialog_new(
-            "Open File",
-            NULL,
-            GTK_FILE_CHOOSER_ACTION_OPEN,
-            "_Cancel", GTK_RESPONSE_CANCEL,
-            "_Open", GTK_RESPONSE_ACCEPT,
-            NULL);
-
-        gint res_open = gtk_dialog_run(GTK_DIALOG(dialog_open));
-
-        if (res_open == GTK_RESPONSE_ACCEPT)
+        switch (c)
         {
-            GtkFileChooser *chooser_open = GTK_FILE_CHOOSER(dialog_open);
-            filename_open = gtk_file_chooser_get_filename(chooser_open);
-            gtk_widget_destroy(dialog_open);
-
-            while (gtk_events_pending())
-                gtk_main_iteration();
-
-            printf("Загружаю файл: %s\n", filename_open);
-            IplImage *image = cvLoadImage(filename_open, CV_LOAD_IMAGE_COLOR);
-            printf("image = %p\n", (void *)image);
-            if (!image)
-            {
-                printf("Ошибка загрузки!\n");
-                g_free(filename_open);
-                continue;
-            }
-
-            IplImage *result = cvCreateImage(
-                cvSize(image->width, image->height),
-                IPL_DEPTH_8U,
-                3);
-
-            printf("Выберите фильтр (0-14):\n");
-            printf("0-blur3x3, 1-blur5x5, 2-gaussian3x3, 3-gaussian5x5, 4-motionblur\n");
-            printf("5-findedges1, 6-findedges2, 7-findedges3, 8-findedges4\n");
-            printf("9-sharpen1, 10-sharpen2, 11-sharpen3, 12-emboss1, 13-emboss2, 14-identity\n");
-            scanf("%d", &filter);
-            while (getchar() != '\n')
-                ; // очистка буфера
-
-            applyFilter(image, result, &filters[filter]);
-
-            GtkWidget *dialog_close = gtk_file_chooser_dialog_new(
-                "Save File",
-                NULL,
-                GTK_FILE_CHOOSER_ACTION_SAVE,
-                "_Cancel", GTK_RESPONSE_CANCEL,
-                "_Save", GTK_RESPONSE_ACCEPT,
-                NULL);
-
-            GtkFileChooser *chooser_close = GTK_FILE_CHOOSER(dialog_close);
-            gtk_file_chooser_set_do_overwrite_confirmation(chooser_close, TRUE);
-            gtk_file_chooser_set_current_name(chooser_close, "Untitled document");
-
-            gint res_close = gtk_dialog_run(GTK_DIALOG(dialog_close));
-            if (res_close == GTK_RESPONSE_ACCEPT)
-            {
-                char *save_filename = gtk_file_chooser_get_filename(chooser_close);
-                cvSaveImage(save_filename, result);
-                printf("Сохранено: %s\n", save_filename);
-                g_free(save_filename);
-            }
-
-            gtk_widget_destroy(dialog_close);
-
-            while (gtk_events_pending())
-                gtk_main_iteration();
-
-            cvReleaseImage(&image);
-            cvReleaseImage(&result);
-            g_free(filename_open);
+        case 'f':
+            filterId = atoi(optarg);
+            break;
+        case 't':
+            strategyId = atoi(optarg);
+            break;
+        case 's':
+            load_path = optarg;
+            break;
+        case 'o':
+            save_path = optarg;
+            break;
+        default:
+            printf("Unknown option: %c\n", c);
+            return 1;
         }
-        else
-        {
-            gtk_widget_destroy(dialog_open);
-        }
-
-        printf("Чтобы продолжить, введите любой символ. Для выхода нажмите exit\n");
-        scanf("%s", pass);
-        while (getchar() != '\n')
-            ;
     }
 
-    // Очистка фильтров
+    // Проверка обязательных параметров
+    if (filterId < 0 || filterId >= NUM_FILTERS)
+    {
+        printf("Error: Invalid filter ID (0-14)\n");
+        return 1;
+    }
+
+    if (strategyId < 0 || strategyId >= 4)
+    {
+        printf("Error: Invalid strategy ID (0-3)\n");
+        return 1;
+    }
+
+    if (!load_path)
+    {
+        printf("Error: Source image required (-s)\n");
+        return 1;
+    }
+
+    if (!save_path)
+    {
+        printf("Error: Output path required (-o)\n");
+        return 1;
+    }
+
+    printf("Loading image from: '%s'\n", load_path);
+    IplImage *image = cvLoadImage(load_path, CV_LOAD_IMAGE_COLOR);
+    if (!image)
+    {
+        printf("Error: Failed to load image\n");
+        return 1;
+    }
+
+    IplImage *result = cvCreateImage(cvGetSize(image), IPL_DEPTH_8U, 3);
+
+    printf("Applying filter %d with strategy %d...\n", filterId, strategyId);
+
+    double start = get_time_ms();
+
+    strategies[strategyId](image, result, &filters[filterId]);
+
+    double end = get_time_ms();
+
+    printf("Saving to: '%s'\n", save_path);
+    cvSaveImage(save_path, result);
+    printf("Completed with the time spent applying the filter equal to %8.2f ms\n", end - start);
+
+    // Очистка
+    cvReleaseImage(&image);
+    cvReleaseImage(&result);
     for (int i = 0; i < NUM_FILTERS; i++)
     {
         filter_free(&filters[i]);

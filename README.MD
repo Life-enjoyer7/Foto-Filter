@@ -12,7 +12,6 @@
 | Библиотека | Назначение | Команда для Ubuntu/Debian |
 |------------|------------|---------------------------|
 | OpenCV | загрузка/сохранение изображений, отображение | `sudo apt install libopencv-dev` |
-| GTK 3.0 | диалоговое окно выбора файла | `sudo apt install libgtk-3-dev` |
 | pkg-config | автоматическое получение флагов компиляции | `sudo apt install pkg-config` |
 
 ---
@@ -25,10 +24,9 @@
 
 | Команда | Описание |
 |---------|----------|
-| `make run` | скомпилировать и запустить версию с GTK-диалогом |
-| `make test` | запустить все тесты |
+| `make build` | скомпилировать основную программу |
+| `make test` | скомпилировать и запустить тесты |
 | `make clean` | удалить папку `build/` |
-| `make help` | показать справку по командам |
 
 ### Пример сборки и запуска
 
@@ -37,8 +35,11 @@
 git clone https://github.com/Life-enjoyer7/Foto-Filter.git
 cd Foto-Filter
 
+# Сборка основной программы
+make build
+
+# Запуск с аргументами командной строки
+./build/filter -f 2 -t 2 -s images/input.jpg -o images/output.jpg
+
 # Сборка и запуск тестов
 make test
-
-# Сборка GUI версии
-make run
