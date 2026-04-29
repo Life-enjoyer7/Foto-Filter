@@ -1,13 +1,5 @@
-#include "filter.h"
-#include <pthread.h>
 #include <unistd.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <opencv2/core/core_c.h>
-#include <opencv2/imgproc/imgproc_c.h>
-#include <opencv2/highgui/highgui_c.h>
+#include "filter.h"
 
 // защита от переопределения
 #undef MIN
@@ -186,10 +178,10 @@ Filter filter_emboss2(void)
 
 void applyFilter(const IplImage *src, IplImage *dst, const Filter *f)
 {
-    cvZero(dst); // заполняем изображение нулями
+    cvZero(dst);
     int w = src->width;
     int h = src->height;
-    int step = src->widthStep; // Количество байт в одной строке изображения
+    int step = src->widthStep;
 
     int channels = src->nChannels;
 
@@ -209,7 +201,6 @@ void applyFilter(const IplImage *src, IplImage *dst, const Filter *f)
                     int ix = (x - f->width / 2 + fx + w) % w;
                     int iy = (y - f->height / 2 + fy + h) % h;
 
-                    // Прямой доступ к пикселю
                     const unsigned char *pixel = src_data + iy * step + ix * channels;
                     blue += pixel[0] * f->matrix[fy][fx];
                     green += pixel[1] * f->matrix[fy][fx];
@@ -274,7 +265,6 @@ static void *processPixelRange(void *args)
                 int ix = (x - f->width / 2 + fx + w) % w;
                 int iy = (y - f->height / 2 + fy + h) % h;
 
-                // Прямой доступ к пикселю
                 const unsigned char *pixel = src_data + iy * step + ix * channels;
                 blue += pixel[0] * f->matrix[fy][fx];
                 green += pixel[1] * f->matrix[fy][fx];
@@ -391,9 +381,9 @@ static void *processRowRange(void *args)
             int g = (int)(f->factor * green + f->bias);
             int b = (int)(f->factor * blue + f->bias);
 
-            r = (r < 0) ? 0 : (r > 255 ? 255 : r);
-            g = (g < 0) ? 0 : (g > 255 ? 255 : g);
-            b = (b < 0) ? 0 : (b > 255 ? 255 : b);
+            r = MAX(0, MIN(255, r));
+            g = MAX(0, MIN(255, g));
+            b = MAX(0, MIN(255, b));
 
             unsigned char *out = dst_data + y * step + x * channels;
             out[0] = (unsigned char)b;
@@ -407,26 +397,22 @@ static void *processRowRange(void *args)
 
 void applyFilterParallelByRows(const IplImage *src, IplImage *dst, const Filter *f)
 {
-    // Обнуляем изображение
+
     cvZero(dst);
 
     int w = src->width;
     int h = src->height;
 
-    // Определяем количество потоков (по числу ядер)
     int numThreads = sysconf(_SC_NPROCESSORS_ONLN);
     if (numThreads <= 0)
         numThreads = 4;
 
-    // Ограничиваем число потоков высотой изображения
     if (numThreads > h)
         numThreads = h;
 
-    // Сколько строк обрабатывает каждый поток
     int rowsPerThread = h / numThreads;
     int remainder = h % numThreads;
 
-    // Создаём потоки
     pthread_t threads[numThreads];
     ThreadArgsRows args[numThreads];
 
@@ -446,7 +432,6 @@ void applyFilterParallelByRows(const IplImage *src, IplImage *dst, const Filter 
         pthread_create(&threads[t], NULL, processRowRange, &args[t]);
     }
 
-    // Ждём завершения всех потоков
     for (int t = 0; t < numThreads; t++)
     {
         pthread_join(threads[t], NULL);
@@ -504,9 +489,9 @@ static void *processColRange(void *args)
             int g = (int)(f->factor * green + f->bias);
             int b = (int)(f->factor * blue + f->bias);
 
-            r = (r < 0) ? 0 : (r > 255 ? 255 : r);
-            g = (g < 0) ? 0 : (g > 255 ? 255 : g);
-            b = (b < 0) ? 0 : (b > 255 ? 255 : b);
+            r = MAX(0, MIN(255, r));
+            g = MAX(0, MIN(255, g));
+            b = MAX(0, MIN(255, b));
 
             unsigned char *out = dst_data + y * step + x * channels;
             out[0] = (unsigned char)b;
@@ -520,26 +505,22 @@ static void *processColRange(void *args)
 
 void applyFilterParallelByCols(const IplImage *src, IplImage *dst, const Filter *f)
 {
-    // Обнуляем изображение
+
     cvZero(dst);
 
     int w = src->width;
     int h = src->height;
 
-    // Определяем количество потоков (по числу ядер)
     int numThreads = sysconf(_SC_NPROCESSORS_ONLN);
     if (numThreads <= 0)
         numThreads = 4;
 
-    // Ограничиваем число потоков шириной изображения
     if (numThreads > w)
         numThreads = w;
 
-    // Сколько столбцов обрабатывает каждый поток
     int colsPerThread = w / numThreads;
     int remainder = w % numThreads;
 
-    // Создаём потоки
     pthread_t threads[numThreads];
     ThreadArgsCols args[numThreads];
 
@@ -565,18 +546,17 @@ void applyFilterParallelByCols(const IplImage *src, IplImage *dst, const Filter 
     }
 }
 
-// Функция для потоковой обработки по столбцам
 typedef struct
 {
-    const IplImage *src; // указатель на исходное изображение (только чтение)
-    IplImage *dst;       // указатель на результирующее изображение (запись)
-    const Filter *f;     // указатель на фильтр (ядро свёртки)
-    int w, h;            // ширина и высота изображения (для wrap-around)
-    int blocksX;         // количество блоков по горизонтали (например, 16)
-    int blockW;          // ширина одного блока в пикселях (например, 64)
-    int blockH;          // высота одного блока в пикселях (например, 64)
-    int startBlock;      // первый блок, который обрабатывает этот поток (линейный индекс)
-    int endBlock;        // последний блок + 1 (не включительно)
+    const IplImage *src;
+    IplImage *dst;
+    const Filter *f;
+    int w, h;       // ширина и высота изображения (для wrap-around)
+    int blocksX;    // количество блоков по горизонтали (например, 16)
+    int blockW;     // ширина одного блока в пикселях (например, 64)
+    int blockH;     // высота одного блока в пикселях (например, 64)
+    int startBlock; // первый блок, который обрабатывает этот поток (линейный индекс)
+    int endBlock;   // последний блок + 1 (не включительно)
 } ThreadArgsBlock;
 
 static void *processBlock(void *args)
@@ -592,10 +572,9 @@ static void *processBlock(void *args)
     const unsigned char *src_data = (const unsigned char *)src->imageData;
     unsigned char *dst_data = (unsigned char *)dst->imageData;
 
-    // Каждый поток обрабатывает свои блоки по одному
     for (int bi = a->startBlock; bi < a->endBlock; bi++)
     {
-        // Координаты блока
+
         int bx = bi % a->blocksX;
         int by = bi / a->blocksX;
 
@@ -628,9 +607,9 @@ static void *processBlock(void *args)
                 int g = (int)(f->factor * green + f->bias);
                 int b = (int)(f->factor * blue + f->bias);
 
-                r = (r < 0) ? 0 : (r > 255 ? 255 : r);
-                g = (g < 0) ? 0 : (g > 255 ? 255 : g);
-                b = (b < 0) ? 0 : (b > 255 ? 255 : b);
+                r = MAX(0, MIN(255, r));
+                g = MAX(0, MIN(255, g));
+                b = MAX(0, MIN(255, b));
 
                 unsigned char *out = dst_data + y * step + x * channels;
                 out[0] = (unsigned char)b;

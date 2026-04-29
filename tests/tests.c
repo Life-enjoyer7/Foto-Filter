@@ -1,12 +1,6 @@
 #include <assert.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <time.h>
-#include <unistd.h>
-#include <opencv2/core/core_c.h>
-#include <opencv2/highgui/highgui_c.h>
-#include <opencv2/imgproc/imgproc_c.h>
+
 #include "../src/filter.h"
 
 const char *imagePaths[15] = {
@@ -89,7 +83,6 @@ void testIdentityFilter(void)
     double times_blocks128[15] = {0};
 
     int valid_count = 0;
-    int sizes[15][2] = {0};
 
     for (int j = 0; j < 15; j++)
     {
@@ -99,9 +92,6 @@ void testIdentityFilter(void)
             printf("ERROR: Failed to load image\n");
             continue;
         }
-
-        sizes[valid_count][0] = img->width;
-        sizes[valid_count][1] = img->height;
 
         // Последовательная версия
         IplImage *result_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
@@ -215,7 +205,6 @@ void testShiftComposition(void)
 
     double times[3][7][15] = {0}; // 7 стратегий: Seq, Pixel, Rows, Cols, Blocks32, Blocks64, Blocks128
     int valid_count = 0;
-    int sizes[15][2] = {0};
 
     double kernel_right[3][3] = {{0, 0, 0}, {1, 0, 0}, {0, 0, 0}};
     double kernel_left[3][3] = {{0, 0, 0}, {0, 0, 1}, {0, 0, 0}};
@@ -240,10 +229,7 @@ void testShiftComposition(void)
             continue;
         }
 
-        sizes[valid_count][0] = img->width;
-        sizes[valid_count][1] = img->height;
-
-                // ==================== Right-Left ====================
+        // Right-Left
         IplImage *temp_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         IplImage *final_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         double start = get_time_ms();
@@ -328,7 +314,7 @@ void testShiftComposition(void)
         cvReleaseImage(&temp_blocks128);
         cvReleaseImage(&final_blocks128);
 
-        // ==================== Up-Down ====================
+        //  Up-Down
         temp_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         final_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         start = get_time_ms();
@@ -413,7 +399,7 @@ void testShiftComposition(void)
         cvReleaseImage(&temp_blocks128);
         cvReleaseImage(&final_blocks128);
 
-        // ==================== Diag ====================
+        //  Diag
         temp_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         final_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         start = get_time_ms();
@@ -549,7 +535,6 @@ void testZeroPadding(void)
 
     double times[5][7][15] = {0}; // 5 фильтров  7 стратегий  15 изображений
     int valid_count = 0;
-    int sizes[15][2] = {0};
 
     Filter original_filters[5];
     original_filters[0] = filter_blur3x3();
@@ -617,9 +602,6 @@ void testZeroPadding(void)
             printf("ERROR: Failed to load image %d\n", i);
             continue;
         }
-
-        sizes[valid_count][0] = img->width;
-        sizes[valid_count][1] = img->height;
 
         for (int j = 0; j < 5; j++)
         {
@@ -759,7 +741,6 @@ void testZeroFilter(void)
 
     double times[7][15] = {0}; // 7 стратегий: Seq, Pixel, Rows, Cols, Blocks32, Blocks64, Blocks128
     int valid_count = 0;
-    int sizes[15][2] = {0};
 
     double kernel_zero[3][3] = {
         {0, 0, 0},
@@ -776,9 +757,6 @@ void testZeroFilter(void)
             printf("ERROR: Failed to load image %d\n", i);
             continue;
         }
-
-        sizes[valid_count][0] = img->width;
-        sizes[valid_count][1] = img->height;
 
         // Последовательная
         IplImage *result_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);

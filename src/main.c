@@ -1,11 +1,5 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 #include <time.h>
 #include <getopt.h>
-#include <opencv2/core/core_c.h>
-#include <opencv2/imgproc/imgproc_c.h>
-#include <opencv2/highgui/highgui_c.h>
 #include "filter.h"
 
 #ifndef CV_LOAD_IMAGE_COLOR
@@ -86,7 +80,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Проверка обязательных параметров
     if (filterId < 0 || filterId >= NUM_FILTERS)
     {
         printf("Error: Invalid filter ID (0-14)\n");
@@ -133,7 +126,6 @@ int main(int argc, char *argv[])
     cvSaveImage(save_path, result);
     printf("Completed with the time spent applying the filter equal to %8.2f ms\n", end - start);
 
-    // Очистка
     cvReleaseImage(&image);
     cvReleaseImage(&result);
     for (int i = 0; i < NUM_FILTERS; i++)
