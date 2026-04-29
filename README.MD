@@ -95,7 +95,6 @@ make test
 
 ### Identity Filter
 
-*Применение identity-фильтра (не изменяет изображение) для каждого тестового изображения.*
 
 ![alt text](benchmarks/Identity.png)
 
