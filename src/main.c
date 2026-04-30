@@ -1,3 +1,5 @@
+#include <stdio.h>
+#include <stdlib.h>
 #include <time.h>
 #include <getopt.h>
 #include "filter.h"
@@ -13,12 +15,11 @@ double get_time_ms(void)
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return ts.tv_sec * 1000.0 + ts.tv_nsec / 1000000.0;
-};
+}
 
 int main(int argc, char *argv[])
 {
     int filterId = -1;
-    int strategyId = -1;
     char *load_path = NULL;
     char *save_path = NULL;
 
@@ -39,18 +40,8 @@ int main(int argc, char *argv[])
     filters[13] = filter_emboss2();
     filters[14] = filter_identity();
 
-    void (*strategies[7])(const IplImage *, IplImage *, const Filter *) = {
-        applyFilter,
-        applyFilterParallelPixelwise,
-        applyFilterParallelByRows,
-        applyFilterParallelByCols,
-        applyFilterParallelByBlocks32,
-        applyFilterParallelByBlocks64,
-        applyFilterParallelByBlocks128};
-
     static struct option long_options[] = {
         {"filter", required_argument, 0, 'f'},
-        {"tactic", required_argument, 0, 't'},
         {"src", required_argument, 0, 's'},
         {"out", required_argument, 0, 'o'},
         {0, 0, 0, 0}};
@@ -58,15 +49,12 @@ int main(int argc, char *argv[])
     int c;
     int option_index = 0;
 
-    while ((c = getopt_long(argc, argv, "f:t:s:o:", long_options, &option_index)) != -1)
+    while ((c = getopt_long(argc, argv, "f:s:o:", long_options, &option_index)) != -1)
     {
         switch (c)
         {
         case 'f':
             filterId = atoi(optarg);
-            break;
-        case 't':
-            strategyId = atoi(optarg);
             break;
         case 's':
             load_path = optarg;
@@ -83,12 +71,6 @@ int main(int argc, char *argv[])
     if (filterId < 0 || filterId >= NUM_FILTERS)
     {
         printf("Error: Invalid filter ID (0-14)\n");
-        return 1;
-    }
-
-    if (strategyId < 0 || strategyId >= 8)
-    {
-        printf("Error: Invalid strategy ID (0-3)\n");
         return 1;
     }
 
@@ -114,12 +96,10 @@ int main(int argc, char *argv[])
 
     IplImage *result = cvCreateImage(cvGetSize(image), IPL_DEPTH_8U, 3);
 
-    printf("Applying filter %d with strategy %d...\n", filterId, strategyId);
+    printf("Applying filter %d...\n", filterId);
 
     double start = get_time_ms();
-
-    strategies[strategyId](image, result, &filters[filterId]);
-
+    applyFilter(image, result, &filters[filterId]);
     double end = get_time_ms();
 
     printf("Saving to: '%s'\n", save_path);
