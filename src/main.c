@@ -20,6 +20,7 @@ double get_time_ms(void)
 int main(int argc, char *argv[])
 {
     int filterId = -1;
+    int strategyId = -1;
     char *load_path = NULL;
     char *save_path = NULL;
 
@@ -40,8 +41,19 @@ int main(int argc, char *argv[])
     filters[13] = filter_emboss2();
     filters[14] = filter_identity();
 
+    // Только параллельные стратегии (без последовательной)
+    void (*strategies[6])(const IplImage *, IplImage *, const Filter *) = {
+        applyFilterParallelPixelwise,  // 0 - попиксельно
+        applyFilterParallelByRows,     // 1 - по строкам
+        applyFilterParallelByCols,     // 2 - по столбцам
+        applyFilterParallelByBlocks32, // 3 - блоки 32x32
+        applyFilterParallelByBlocks64, // 4 - блоки 64x64
+        applyFilterParallelByBlocks128 // 5 - блоки 128x128
+    };
+
     static struct option long_options[] = {
         {"filter", required_argument, 0, 'f'},
+        {"tactic", required_argument, 0, 't'},
         {"src", required_argument, 0, 's'},
         {"out", required_argument, 0, 'o'},
         {0, 0, 0, 0}};
@@ -49,12 +61,15 @@ int main(int argc, char *argv[])
     int c;
     int option_index = 0;
 
-    while ((c = getopt_long(argc, argv, "f:s:o:", long_options, &option_index)) != -1)
+    while ((c = getopt_long(argc, argv, "f:t:s:o:", long_options, &option_index)) != -1)
     {
         switch (c)
         {
         case 'f':
             filterId = atoi(optarg);
+            break;
+        case 't':
+            strategyId = atoi(optarg);
             break;
         case 's':
             load_path = optarg;
@@ -71,6 +86,18 @@ int main(int argc, char *argv[])
     if (filterId < 0 || filterId >= NUM_FILTERS)
     {
         printf("Error: Invalid filter ID (0-14)\n");
+        return 1;
+    }
+
+    if (strategyId < 0 || strategyId >= 6)
+    {
+        printf("Error: Invalid strategy ID (0-5)\n");
+        printf("  0 - pixelwise\n");
+        printf("  1 - by rows\n");
+        printf("  2 - by cols\n");
+        printf("  3 - blocks 32x32\n");
+        printf("  4 - blocks 64x64\n");
+        printf("  5 - blocks 128x128\n");
         return 1;
     }
 
@@ -96,10 +123,10 @@ int main(int argc, char *argv[])
 
     IplImage *result = cvCreateImage(cvGetSize(image), IPL_DEPTH_8U, 3);
 
-    printf("Applying filter %d...\n", filterId);
+    printf("Applying filter %d with strategy %d...\n", filterId, strategyId);
 
     double start = get_time_ms();
-    applyFilter(image, result, &filters[filterId]);
+    strategies[strategyId](image, result, &filters[filterId]);
     double end = get_time_ms();
 
     printf("Saving to: '%s'\n", save_path);

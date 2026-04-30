@@ -35,7 +35,14 @@ Filter filter_sharpen3(void);
 Filter filter_emboss1(void);
 Filter filter_emboss2(void);
 
-// Применение фильтра (только последовательная версия)
+// Применение фильтра (все версии)
 void applyFilter(const IplImage *src, IplImage *dst, const Filter *f);
+void applyFilterParallelPixelwise(const IplImage *src, IplImage *dst, const Filter *f);
+void applyFilterParallelByRows(const IplImage *src, IplImage *dst, const Filter *f);
+void applyFilterParallelByCols(const IplImage *src, IplImage *dst, const Filter *f);
+void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst, const Filter *f, int blockW, int blockH);
+void applyFilterParallelByBlocks32(const IplImage *src, IplImage *dst, const Filter *f);
+void applyFilterParallelByBlocks64(const IplImage *src, IplImage *dst, const Filter *f);
+void applyFilterParallelByBlocks128(const IplImage *src, IplImage *dst, const Filter *f);
 
 #endif
