@@ -73,8 +73,8 @@
 
 ```bash
 # Клонирование репозитория
-git clone https://github.com/Life-enjoyer7/Foto-Filter.git
-cd Foto-Filter
+git clone https://github.com/Life-enjoyer7/parallel-convolution-Life-enjoyer7
+cd parallel-convolution-Life-enjoyer7
 
 # Сборка основной программы
 make build
