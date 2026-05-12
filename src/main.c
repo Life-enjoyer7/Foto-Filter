@@ -12,7 +12,7 @@
 #define CV_LOAD_IMAGE_COLOR 1
 #endif
 
-#define NUM_FILTERS 15
+#define NUM_FILTERS 27
 #define MAX_IMAGES 1000
 
 // Глобальный массив фильтров (чтобы не создавать каждый раз)
@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
     // Проверка обязательных параметров
     if (filter_id < 0 || filter_id >= NUM_FILTERS)
     {
-        printf("Error: Invalid filter ID (0-14)\n");
+        printf("Error: Invalid filter ID (0-27)\n");
         return 1;
     }
 

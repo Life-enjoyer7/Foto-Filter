@@ -176,6 +176,109 @@ Filter filter_emboss2(void)
     return filter_create(5, 5, &kernel[0][0], 1.0, 128.0);
 }
 
+Filter filter_shift_right(void)
+{
+    double kernel[3][3] = {{0, 0, 0}, {1, 0, 0}, {0, 0, 0}};
+    return filter_create(3, 3, &kernel[0][0], 1.0, 0.0);
+}
+
+Filter filter_shift_left(void)
+{
+    double kernel[3][3] = {{0, 0, 0}, {0, 0, 1}, {0, 0, 0}};
+    return filter_create(3, 3, &kernel[0][0], 1.0, 0.0);
+}
+
+Filter filter_shift_up(void)
+{
+    double kernel[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 1, 0}};
+    return filter_create(3, 3, &kernel[0][0], 1.0, 0.0);
+}
+
+Filter filter_shift_down(void)
+{
+    double kernel[3][3] = {{0, 1, 0}, {0, 0, 0}, {0, 0, 0}};
+    return filter_create(3, 3, &kernel[0][0], 1.0, 0.0);
+}
+
+Filter filter_shift_diag_up(void)
+{
+    double kernel[3][3] = {{0, 0, 0}, {0, 0, 0}, {1, 0, 0}};
+    return filter_create(3, 3, &kernel[0][0], 1.0, 0.0);
+}
+
+Filter filter_shift_diag_down(void)
+{
+    double kernel[3][3] = {{0, 0, 1}, {0, 0, 0}, {0, 0, 0}};
+    return filter_create(3, 3, &kernel[0][0], 1.0, 0.0);
+}
+
+Filter filter_blur3x3_padded(void)
+{
+    double kernel[5][5] = {
+        {0, 0, 0, 0, 0},
+        {0, 0, 0.2, 0, 0},
+        {0, 0.2, 0.2, 0.2, 0},
+        {0, 0, 0.2, 0, 0},
+        {0, 0, 0, 0, 0}};
+    return filter_create(5, 5, &kernel[0][0], 1.0, 0.0);
+}
+
+Filter filter_gaussian3x3_padded(void)
+{
+    double kernel[5][5] = {
+        {0, 0, 0, 0, 0},
+        {0, 1, 2, 1, 0},
+        {0, 2, 4, 2, 0},
+        {0, 1, 2, 1, 0},
+        {0, 0, 0, 0, 0}};
+    return filter_create(5, 5, &kernel[0][0], 1.0 / 16.0, 0.0);
+}
+
+Filter filter_findedges1_padded(void)
+{
+    double kernel[7][7] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, -1, 0, 0, 0},
+        {0, 0, 0, -1, 0, 0, 0},
+        {0, 0, 0, 2, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0}};
+    return filter_create(7, 7, &kernel[0][0], 1.0, 0.0);
+}
+
+Filter filter_sharpen1_padded(void)
+{
+    double kernel[5][5] = {
+        {0, 0, 0, 0, 0},
+        {0, -1, -1, -1, 0},
+        {0, -1, 9, -1, 0},
+        {0, -1, -1, -1, 0},
+        {0, 0, 0, 0, 0}};
+    return filter_create(5, 5, &kernel[0][0], 1.0, 0.0);
+}
+
+Filter filter_emboss1_padded(void)
+{
+    double kernel[5][5] = {
+        {0, 0, 0, 0, 0},
+        {0, -1, -1, 0, 0},
+        {0, -1, 0, 1, 0},
+        {0, 0, 1, 1, 0},
+        {0, 0, 0, 0, 0}};
+    return filter_create(5, 5, &kernel[0][0], 1.0, 128.0);
+}
+
+Filter filter_zero(void)
+{
+    double kernel_zero[3][3] = {
+        {0, 0, 0},
+        {0, 0, 0},
+        {0, 0, 0}};
+
+    return filter_create(3, 3, &kernel_zero[0][0], 1.0, 0.0);
+}
+
 void applyFilter(const IplImage *src, IplImage *dst, const Filter *f)
 {
     cvZero(dst);

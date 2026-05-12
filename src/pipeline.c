@@ -1,4 +1,3 @@
-
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -92,7 +91,7 @@ static void *worker_func(void *arg)
 
         if (job == NULL)
         {
-            queue_push(output_queue, NULL); // Пробрасываем poison pill дальше
+            queue_push(output_queue, NULL);
             break;
         }
 
@@ -123,7 +122,6 @@ static void *writer_func(void *arg)
     {
         Job *job = (Job *)queue_pop(output_queue);
 
-        // Пропускаем poison pills - они не содержат изображения
         if (job == NULL)
         {
             printf("Writer: получен poison pill\n");
@@ -157,7 +155,8 @@ void pipeline_run(const char **input_paths, const char **output_paths,
     Queue *input_queue = queue_create(10);
     Queue *output_queue = queue_create(10);
 
-    Filter filters[15];
+    // 15 стандартных фильтров
+    Filter filters[27];
     filters[0] = filter_blur3x3();
     filters[1] = filter_blur5x5();
     filters[2] = filter_gaussian3x3();
@@ -173,6 +172,24 @@ void pipeline_run(const char **input_paths, const char **output_paths,
     filters[12] = filter_emboss1();
     filters[13] = filter_emboss2();
     filters[14] = filter_identity();
+
+    // Фильтры сдвига
+    filters[15] = filter_shift_right();
+    filters[16] = filter_shift_left();
+    filters[17] = filter_shift_up();
+    filters[18] = filter_shift_down();
+    filters[19] = filter_shift_diag_up();
+    filters[20] = filter_shift_diag_down();
+
+    // Padded фильтры
+    filters[21] = filter_blur3x3_padded();
+    filters[22] = filter_gaussian3x3_padded();
+    filters[23] = filter_findedges1_padded();
+    filters[24] = filter_sharpen1_padded();
+    filters[25] = filter_emboss1_padded();
+
+    // Zero фильтры
+    filters[26] = filter_zero();
 
     ReaderArgs reader_args = {
         .input_queue = input_queue,
@@ -217,13 +234,12 @@ void pipeline_run(const char **input_paths, const char **output_paths,
     pthread_join(writer, NULL);
     printf("Pipeline: писатель завершил работу\n");
 
-    for (int i = 0; i < 15; i++)
+    // Очистка всех фильтров
+    for (int i = 0; i < 21; i++)
     {
         filter_free(&filters[i]);
     }
 
     queue_destroy(input_queue);
     queue_destroy(output_queue);
-
-    printf("Pipeline: завершён\n");
 }

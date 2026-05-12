@@ -28,7 +28,6 @@ typedef struct
 {
     Queue *output_queue;
     int num_images;
-    int num_workers; // ← добавить
 } WriterArgs;
 
 void pipeline_run(const char **input_paths, const char **output_paths,
