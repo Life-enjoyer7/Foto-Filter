@@ -176,6 +176,53 @@ Filter filter_emboss2(void)
     return filter_create(5, 5, &kernel[0][0], 1.0, 128.0);
 }
 
+void applyFilter(const IplImage *src, IplImage *dst, const Filter *f)
+{
+    cvZero(dst);
+    int w = src->width;
+    int h = src->height;
+    int step = src->widthStep;
+    int channels = src->nChannels;
+
+    const unsigned char *src_data = (const unsigned char *)src->imageData;
+    unsigned char *dst_data = (unsigned char *)dst->imageData;
+
+    for (int y = 0; y < h; y++)
+    {
+        for (int x = 0; x < w; x++)
+        {
+            double red = 0.0, green = 0.0, blue = 0.0;
+
+            for (int fy = 0; fy < f->height; fy++)
+            {
+                for (int fx = 0; fx < f->width; fx++)
+                {
+                    int ix = (x - f->width / 2 + fx + w) % w;
+                    int iy = (y - f->height / 2 + fy + h) % h;
+
+                    const unsigned char *pixel = src_data + iy * step + ix * channels;
+                    blue += pixel[0] * f->matrix[fy][fx];
+                    green += pixel[1] * f->matrix[fy][fx];
+                    red += pixel[2] * f->matrix[fy][fx];
+                }
+            }
+
+            int r = (int)(f->factor * red + f->bias);
+            int g = (int)(f->factor * green + f->bias);
+            int b = (int)(f->factor * blue + f->bias);
+
+            r = MAX(0, MIN(255, r));
+            g = MAX(0, MIN(255, g));
+            b = MAX(0, MIN(255, b));
+
+            unsigned char *out = dst_data + y * step + x * channels;
+            out[0] = (unsigned char)b;
+            out[1] = (unsigned char)g;
+            out[2] = (unsigned char)r;
+        }
+    }
+}
+
 typedef struct
 {
     const IplImage *src;
