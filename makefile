@@ -26,14 +26,12 @@ BUILD_DIR = build
 NAME = filter
 NAME_TEST = tests
 
-OPENCV_LIB_PATH = /usr/local/opencv3.4/lib
-
 # Основная программа (конвейерная обработка)
 build: $(BUILD_DIR)/$(NAME)
 
-# Тесты (используют pipeline)
+# Тесты
 test: $(BUILD_DIR)/$(NAME_TEST)
-	export LD_LIBRARY_PATH=$(OPENCV_LIB_PATH):$$LD_LIBRARY_PATH && $(BUILD_DIR)/$(NAME_TEST)
+	$(BUILD_DIR)/$(NAME_TEST)
 
 # Сборка основной программы со всеми модулями
 $(BUILD_DIR)/$(NAME): $(MAIN_PATH) $(FILTER_PATH) $(PIPELINE_PATH) $(UTILS_PATH) $(QUEUE_PATH) $(JOB_PATH)
@@ -41,7 +39,7 @@ $(BUILD_DIR)/$(NAME): $(MAIN_PATH) $(FILTER_PATH) $(PIPELINE_PATH) $(UTILS_PATH)
 	$(CC) $(MAIN_PATH) $(FILTER_PATH) $(PIPELINE_PATH) $(UTILS_PATH) $(QUEUE_PATH) $(JOB_PATH) \
 	      $(CFLAGS) $(INCLUDES) $(OPENCV_LIBS) $(PTHREADFLAGS) -o $@
 
-# Сборка тестов (теперь тоже используют pipeline, queue, job, utils)
+# Сборка тестов
 $(BUILD_DIR)/$(NAME_TEST): $(TEST_PATH) $(FILTER_PATH) $(PIPELINE_PATH) $(UTILS_PATH) $(QUEUE_PATH) $(JOB_PATH)
 	mkdir -p $(BUILD_DIR)
 	$(CC) $(TEST_PATH) $(FILTER_PATH) $(PIPELINE_PATH) $(UTILS_PATH) $(QUEUE_PATH) $(JOB_PATH) \

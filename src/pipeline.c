@@ -192,7 +192,7 @@ void pipeline_run(const char **input_paths, const char **output_paths,
     filters[24] = filter_sharpen1_padded();
     filters[25] = filter_emboss1_padded();
 
-    // Zero фильтры
+    // Zero фильтр
     filters[26] = filter_zero();
 
     ReaderArgs reader_args = {
