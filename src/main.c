@@ -65,13 +65,13 @@ int main(int argc, char *argv[])
     // Проверка обязательных параметров
     if (filter_id < 0 || filter_id >= NUM_FILTERS)
     {
-        printf("Error: Invalid filter ID (0-27)\n");
+        printf("Error: Invalid filter ID (0-26)\n");
         return 1;
     }
 
-    if (strategy_id < 0 || strategy_id >= 6)
+    if (strategy_id < 0 || strategy_id >= 7)
     {
-        printf("Error: Invalid strategy ID (0-5)\n");
+        printf("Error: Invalid strategy ID (0-6)\n");
         return 1;
     }
 

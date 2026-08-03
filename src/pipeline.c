@@ -238,8 +238,8 @@ void pipeline_run(const char **input_paths, const char **output_paths,
     pthread_join(writer, NULL);
     printf("Pipeline: писатель завершил работу\n");
 
-    // Очистка всех фильтров
-    for (int i = 0; i < 21; i++)
+    // Очистка всех фильтров (все 27: 15 стандартных + 6 сдвига + 5 padded + zero)
+    for (int i = 0; i < 27; i++)
     {
         filter_free(&filters[i]);
     }
