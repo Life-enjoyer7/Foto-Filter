@@ -1,14 +1,16 @@
+#include <stdlib.h>
+#include <pthread.h>
 #include <unistd.h>
 #include "filter.h"
 
-// защита от переопределения
+
 #undef MIN
 #undef MAX
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
-Filter filter_create(int w, int h, double *data, double f, double b)
+Filter filter_create(int w, int h, const double *data, double f, double b)
 {
     Filter flt;
     flt.width = w;
@@ -16,10 +18,10 @@ Filter filter_create(int w, int h, double *data, double f, double b)
     flt.factor = f;
     flt.bias = b;
 
-    flt.matrix = (double **)malloc(h * sizeof(double *));
+    flt.matrix = malloc(h * sizeof(double *));
     for (int i = 0; i < h; i++)
     {
-        flt.matrix[i] = (double *)malloc(w * sizeof(double));
+        flt.matrix[i] = malloc(w * sizeof(double));
         for (int j = 0; j < w; j++)
         {
             flt.matrix[i][j] = data[i * w + j];
@@ -44,19 +46,19 @@ void filter_free(Filter *f)
 
 Filter filter_identity(void)
 {
-    double kernel[3][3] = {{0, 0, 0}, {0, 1, 0}, {0, 0, 0}};
+    const double kernel[3][3] = {{0, 0, 0}, {0, 1, 0}, {0, 0, 0}};
     return filter_create(3, 3, &kernel[0][0], 1.0, 0.0);
 }
 
 Filter filter_blur3x3(void)
 {
-    double kernel[3][3] = {{0.0, 0.2, 0.0}, {0.2, 0.2, 0.2}, {0.0, 0.2, 0.0}};
+    const double kernel[3][3] = {{0.0, 0.2, 0.0}, {0.2, 0.2, 0.2}, {0.0, 0.2, 0.0}};
     return filter_create(3, 3, &kernel[0][0], 1.0, 0.0);
 }
 
 Filter filter_blur5x5(void)
 {
-    double kernel[5][5] = {
+    const double kernel[5][5] = {
         {0, 0, 1, 0, 0},
         {0, 1, 1, 1, 0},
         {1, 1, 1, 1, 1},
@@ -67,13 +69,13 @@ Filter filter_blur5x5(void)
 
 Filter filter_gaussian3x3(void)
 {
-    double kernel[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
+    const double kernel[3][3] = {{1, 2, 1}, {2, 4, 2}, {1, 2, 1}};
     return filter_create(3, 3, &kernel[0][0], 1.0 / 16.0, 0.0);
 }
 
 Filter filter_gaussian5x5(void)
 {
-    double kernel[5][5] = {
+    const double kernel[5][5] = {
         {1, 4, 6, 4, 1},
         {4, 16, 24, 16, 4},
         {6, 24, 36, 24, 6},
@@ -84,7 +86,7 @@ Filter filter_gaussian5x5(void)
 
 Filter filter_motionblur(void)
 {
-    double kernel[9][9] = {
+    const double kernel[9][9] = {
         {1, 0, 0, 0, 0, 0, 0, 0, 0},
         {0, 1, 0, 0, 0, 0, 0, 0, 0},
         {0, 0, 1, 0, 0, 0, 0, 0, 0},
@@ -99,7 +101,7 @@ Filter filter_motionblur(void)
 
 Filter filter_findedges1(void)
 {
-    double kernel[5][5] = {
+    const double kernel[5][5] = {
         {0, 0, -1, 0, 0},
         {0, 0, -1, 0, 0},
         {0, 0, 2, 0, 0},
@@ -110,7 +112,7 @@ Filter filter_findedges1(void)
 
 Filter filter_findedges2(void)
 {
-    double kernel[5][5] = {
+    const double kernel[5][5] = {
         {0, 0, -1, 0, 0},
         {0, 0, -1, 0, 0},
         {0, 0, 4, 0, 0},
@@ -121,7 +123,7 @@ Filter filter_findedges2(void)
 
 Filter filter_findedges3(void)
 {
-    double kernel[5][5] = {
+    const double kernel[5][5] = {
         {-1, 0, 0, 0, 0},
         {0, -2, 0, 0, 0},
         {0, 0, 6, 0, 0},
@@ -132,19 +134,19 @@ Filter filter_findedges3(void)
 
 Filter filter_findedges4(void)
 {
-    double kernel[3][3] = {{-1, -1, -1}, {-1, 8, -1}, {-1, -1, -1}};
+    const double kernel[3][3] = {{-1, -1, -1}, {-1, 8, -1}, {-1, -1, -1}};
     return filter_create(3, 3, &kernel[0][0], 1.0, 0.0);
 }
 
 Filter filter_sharpen1(void)
 {
-    double kernel[3][3] = {{-1, -1, -1}, {-1, 9, -1}, {-1, -1, -1}};
+    const double kernel[3][3] = {{-1, -1, -1}, {-1, 9, -1}, {-1, -1, -1}};
     return filter_create(3, 3, &kernel[0][0], 1.0, 0.0);
 }
 
 Filter filter_sharpen2(void)
 {
-    double kernel[5][5] = {
+    const double kernel[5][5] = {
         {-1, -1, -1, -1, -1},
         {-1, 2, 2, 2, -1},
         {-1, 2, 8, 2, -1},
@@ -155,25 +157,52 @@ Filter filter_sharpen2(void)
 
 Filter filter_sharpen3(void)
 {
-    double kernel[3][3] = {{1, 1, 1}, {1, -7, 1}, {1, 1, 1}};
+    const double kernel[3][3] = {{1, 1, 1}, {1, -7, 1}, {1, 1, 1}};
     return filter_create(3, 3, &kernel[0][0], 1.0 / 8.0, 0.0);
 }
 
 Filter filter_emboss1(void)
 {
-    double kernel[3][3] = {{-1, -1, 0}, {-1, 0, 1}, {0, 1, 1}};
+    const double kernel[3][3] = {{-1, -1, 0}, {-1, 0, 1}, {0, 1, 1}};
     return filter_create(3, 3, &kernel[0][0], 1.0, 128.0);
 }
 
 Filter filter_emboss2(void)
 {
-    double kernel[5][5] = {
+    const double kernel[5][5] = {
         {-1, -1, -1, -1, 0},
         {-1, -1, -1, 0, 1},
         {-1, -1, 0, 1, 1},
         {-1, 0, 1, 1, 1},
         {0, 1, 1, 1, 1}};
     return filter_create(5, 5, &kernel[0][0], 1.0, 128.0);
+}
+
+
+
+
+typedef Filter (*filter_factory_t)(void);
+
+const filter_factory_t filter_factories[NUM_FILTERS] = {
+    filter_blur3x3, filter_blur5x5, filter_gaussian3x3, filter_gaussian5x5,
+    filter_motionblur,
+    filter_findedges1, filter_findedges2, filter_findedges3, filter_findedges4,
+    filter_sharpen1, filter_sharpen2, filter_sharpen3,
+    filter_emboss1, filter_emboss2, filter_identity};
+
+const char *const filter_names[NUM_FILTERS] = {
+    "blur3x3", "blur5x5", "gaussian3x3", "gaussian5x5", "motionblur",
+    "findedges1", "findedges2", "findedges3", "findedges4",
+    "sharpen1", "sharpen2", "sharpen3", "emboss1", "emboss2", "identity"};
+
+Filter filter_by_id(int id)
+{
+    return filter_factories[id]();
+}
+
+const char *filter_name(int id)
+{
+    return filter_names[id];
 }
 
 void applyFilter(const IplImage *src, IplImage *dst, const Filter *f)
@@ -550,12 +579,12 @@ typedef struct
     const IplImage *src;
     IplImage *dst;
     const Filter *f;
-    int w, h;       // ширина и высота изображения (для wrap-around)
-    int blocksX;    // количество блоков по горизонтали (например, 16)
-    int blockW;     // ширина одного блока в пикселях (например, 64)
-    int blockH;     // высота одного блока в пикселях (например, 64)
-    int startBlock; // первый блок, который обрабатывает этот поток (линейный индекс)
-    int endBlock;   // последний блок + 1 (не включительно)
+    int w, h;
+    int blocksX;
+    int blockW;
+    int blockH;
+    int startBlock;
+    int endBlock;
 } ThreadArgsBlock;
 
 static void *processBlock(void *args)
@@ -621,7 +650,7 @@ static void *processBlock(void *args)
     return NULL;
 }
 
-void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst, const Filter *f, int blockW = 64, int blockH = 64)
+void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst, const Filter *f, int blockW, int blockH)
 {
     cvZero(dst);
 
@@ -681,3 +710,13 @@ void applyFilterParallelByBlocks128(const IplImage *src, IplImage *dst, const Fi
 {
     applyFilterParallelByBlocks(src, dst, f, 128, 128);
 }
+
+const NamedStrategy allStrategies[NUM_STRATEGIES] = {
+    {"sequential", applyFilter},
+    {"pixelwise", applyFilterParallelPixelwise},
+    {"rows", applyFilterParallelByRows},
+    {"cols", applyFilterParallelByCols},
+    {"blocks32", applyFilterParallelByBlocks32},
+    {"blocks64", applyFilterParallelByBlocks64},
+    {"blocks128", applyFilterParallelByBlocks128},
+};

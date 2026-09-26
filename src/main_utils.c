@@ -2,7 +2,7 @@
 #include <time.h>
 #include "main_utils.h"
 
-static double get_time_ms(void)
+double get_time_ms(void)
 {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -21,7 +21,7 @@ void benchmark_filter(FilterFn fn, const IplImage *src, IplImage *dst, const Fil
 {
     fn(src, dst, f);
 
-    double *samples = (double *)malloc(repeat * sizeof(double));
+    double *samples = malloc(repeat * sizeof(double));
     double sum = 0.0;
     for (int i = 0; i < repeat; i++)
     {

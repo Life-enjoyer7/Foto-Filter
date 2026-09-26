@@ -3,7 +3,7 @@
 
 #include <opencv2/core/core_c.h>
 #include <opencv2/imgproc/imgproc_c.h>
-#include <opencv2/highgui/highgui_c.h>
+#include <opencv2/imgcodecs/imgcodecs_c.h>
 
 typedef struct
 {
@@ -14,11 +14,11 @@ typedef struct
     double bias;
 } Filter;
 
-// Конструктор и деструктор
-Filter filter_create(int w, int h, double *data, double f, double b);
+
+Filter filter_create(int w, int h, const double *data, double f, double b);
 void filter_free(Filter *f);
 
-// Фильтры
+
 Filter filter_identity(void);
 Filter filter_blur3x3(void);
 Filter filter_blur5x5(void);
@@ -35,7 +35,27 @@ Filter filter_sharpen3(void);
 Filter filter_emboss1(void);
 Filter filter_emboss2(void);
 
-// Применение фильтра (все версии)
+
+
+
+#define NUM_FILTERS 15
+Filter filter_by_id(int id);
+const char *filter_name(int id);
+
+
+typedef void (*FilterFn)(const IplImage *, IplImage *, const Filter *);
+
+
+typedef struct
+{
+    const char *name;
+    FilterFn fn;
+} NamedStrategy;
+
+#define NUM_STRATEGIES 7
+extern const NamedStrategy allStrategies[NUM_STRATEGIES];
+
+
 void applyFilter(const IplImage *src, IplImage *dst, const Filter *f);
 void applyFilterParallelPixelwise(const IplImage *src, IplImage *dst, const Filter *f);
 void applyFilterParallelByRows(const IplImage *src, IplImage *dst, const Filter *f);

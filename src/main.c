@@ -8,7 +8,6 @@
 #define CV_LOAD_IMAGE_COLOR 1
 #endif
 
-#define NUM_FILTERS 15
 #define DEFAULT_REPEAT 10
 
 int main(int argc, char *argv[])
@@ -18,33 +17,6 @@ int main(int argc, char *argv[])
     char *load_path = NULL;
     char *save_path = NULL;
     int repeat = DEFAULT_REPEAT;
-
-    Filter filters[NUM_FILTERS];
-    filters[0] = filter_blur3x3();
-    filters[1] = filter_blur5x5();
-    filters[2] = filter_gaussian3x3();
-    filters[3] = filter_gaussian5x5();
-    filters[4] = filter_motionblur();
-    filters[5] = filter_findedges1();
-    filters[6] = filter_findedges2();
-    filters[7] = filter_findedges3();
-    filters[8] = filter_findedges4();
-    filters[9] = filter_sharpen1();
-    filters[10] = filter_sharpen2();
-    filters[11] = filter_sharpen3();
-    filters[12] = filter_emboss1();
-    filters[13] = filter_emboss2();
-    filters[14] = filter_identity();
-
-    // Только параллельные стратегии (без последовательной)
-    FilterFn strategies[6] = {
-        applyFilterParallelPixelwise,  // 0 - попиксельно
-        applyFilterParallelByRows,     // 1 - по строкам
-        applyFilterParallelByCols,     // 2 - по столбцам
-        applyFilterParallelByBlocks32, // 3 - блоки 32x32
-        applyFilterParallelByBlocks64, // 4 - блоки 64x64
-        applyFilterParallelByBlocks128 // 5 - блоки 128x128
-    };
 
     static struct option long_options[] = {
         {"filter", required_argument, 0, 'f'},
@@ -130,20 +102,19 @@ int main(int argc, char *argv[])
 
     printf("Applying filter %d with strategy %d (%d timed runs after warm-up)...\n", filterId, strategyId, repeat);
 
+    Filter filter = filter_by_id(filterId);
+
     double min_ms, mean_ms, median_ms;
-    benchmark_filter(strategies[strategyId], image, result, &filters[filterId], repeat, &min_ms, &mean_ms, &median_ms);
+    benchmark_filter(allStrategies[strategyId + 1].fn, image, result, &filter, repeat, &min_ms, &mean_ms, &median_ms);
 
     printf("Saving to: '%s'\n", save_path);
-    cvSaveImage(save_path, result);
+    cvSaveImage(save_path, result, 0);
     printf("Time spent applying the filter: min=%8.2f ms  mean=%8.2f ms  median=%8.2f ms\n",
            min_ms, mean_ms, median_ms);
 
     cvReleaseImage(&image);
     cvReleaseImage(&result);
-    for (int i = 0; i < NUM_FILTERS; i++)
-    {
-        filter_free(&filters[i]);
-    }
+    filter_free(&filter);
 
     return 0;
 }

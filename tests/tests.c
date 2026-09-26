@@ -1,4 +1,3 @@
-#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -30,35 +29,35 @@ void testIdentityFilter(void)
             continue;
         }
 
-        // Последовательная - эталон для сверки параллельных стратегий
+
         IplImage *result_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times_seq[valid_count] = timeFilterMs(applyFilter, img, result_seq, &identity);
 
-        // Параллельная попиксельно
+
         IplImage *result_pixel = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times_pixel[valid_count] = timeFilterMs(applyFilterParallelPixelwise, img, result_pixel, &identity);
 
-        // Параллельная по строкам
+
         IplImage *result_rows = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times_rows[valid_count] = timeFilterMs(applyFilterParallelByRows, img, result_rows, &identity);
 
-        // Параллельная по столбцам
+
         IplImage *result_cols = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times_cols[valid_count] = timeFilterMs(applyFilterParallelByCols, img, result_cols, &identity);
 
-        // Параллельная по блокам 32x32
+
         IplImage *result_blocks32 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times_blocks32[valid_count] = timeFilterMs(applyFilterParallelByBlocks32, img, result_blocks32, &identity);
 
-        // Параллельная по блокам 64x64
+
         IplImage *result_blocks64 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times_blocks64[valid_count] = timeFilterMs(applyFilterParallelByBlocks64, img, result_blocks64, &identity);
 
-        // Параллельная по блокам 128x128
+
         IplImage *result_blocks128 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times_blocks128[valid_count] = timeFilterMs(applyFilterParallelByBlocks128, img, result_blocks128, &identity);
 
-        // Проверка: все параллельные версии должны давать тот же результат, что и последовательная
+
         int eq_pixel_seq = imagesEqual(result_pixel, result_seq);
         int eq_pixel_rows = imagesEqual(result_pixel, result_rows);
         int eq_pixel_cols = imagesEqual(result_pixel, result_cols);
@@ -70,7 +69,7 @@ void testIdentityFilter(void)
         {
             printf("Results do not match between parallel strategies (or the sequential reference)!\n");
         }
-        assert(eq_pixel_seq && eq_pixel_rows && eq_pixel_cols && eq_pixel_32 && eq_pixel_64 && eq_pixel_128);
+        CHECK(eq_pixel_seq && eq_pixel_rows && eq_pixel_cols && eq_pixel_32 && eq_pixel_64 && eq_pixel_128);
 
         cvReleaseImage(&result_seq);
         cvReleaseImage(&result_pixel);
@@ -110,7 +109,6 @@ void testIdentityFilter(void)
            total_seq, total_pixel, total_rows, total_cols, total_blocks32, total_blocks64, total_blocks128);
 
     printf("\n");
-    printf("                                        TEST 1 PASSED                                  \n");
     filter_free(&identity);
 }
 
@@ -119,15 +117,15 @@ void testShiftComposition(void)
     printf("\n");
     printf("                                        TEST 2: SHIFT COMPOSITION                         \n");
 
-    double times[3][7][15] = {0}; // 3 композиции × (6 параллельных стратегий + Seq)
+    double times[3][7][15] = {0};
     int valid_count = 0;
 
-    double kernel_right[3][3] = {{0, 0, 0}, {1, 0, 0}, {0, 0, 0}};
-    double kernel_left[3][3] = {{0, 0, 0}, {0, 0, 1}, {0, 0, 0}};
-    double kernel_up[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 1, 0}};
-    double kernel_down[3][3] = {{0, 1, 0}, {0, 0, 0}, {0, 0, 0}};
-    double kernel_diag_up[3][3] = {{0, 0, 0}, {0, 0, 0}, {1, 0, 0}};
-    double kernel_diag_down[3][3] = {{0, 0, 1}, {0, 0, 0}, {0, 0, 0}};
+    const double kernel_right[3][3] = {{0, 0, 0}, {1, 0, 0}, {0, 0, 0}};
+    const double kernel_left[3][3] = {{0, 0, 0}, {0, 0, 1}, {0, 0, 0}};
+    const double kernel_up[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 1, 0}};
+    const double kernel_down[3][3] = {{0, 1, 0}, {0, 0, 0}, {0, 0, 0}};
+    const double kernel_diag_up[3][3] = {{0, 0, 0}, {0, 0, 0}, {1, 0, 0}};
+    const double kernel_diag_down[3][3] = {{0, 0, 1}, {0, 0, 0}, {0, 0, 0}};
 
     Filter shiftRight = filter_create(3, 3, &kernel_right[0][0], 1.0, 0.0);
     Filter shiftLeft = filter_create(3, 3, &kernel_left[0][0], 1.0, 0.0);
@@ -145,43 +143,43 @@ void testShiftComposition(void)
             continue;
         }
 
-        // Right-Left
-        // Последовательная - эталон для сверки параллельных стратегий
+
+
         IplImage *temp_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         IplImage *final_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[0][6][valid_count] = timeTwoFiltersMs(applyFilter, img, temp_seq, &shiftRight, temp_seq, final_seq, &shiftLeft);
 
-        // Попиксельно
+
         IplImage *temp_pixel = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         IplImage *final_pixel = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[0][0][valid_count] = timeTwoFiltersMs(applyFilterParallelPixelwise, img, temp_pixel, &shiftRight, temp_pixel, final_pixel, &shiftLeft);
 
-        // По строкам
+
         IplImage *temp_rows = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         IplImage *final_rows = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[0][1][valid_count] = timeTwoFiltersMs(applyFilterParallelByRows, img, temp_rows, &shiftRight, temp_rows, final_rows, &shiftLeft);
 
-        // По столбцам
+
         IplImage *temp_cols = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         IplImage *final_cols = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[0][2][valid_count] = timeTwoFiltersMs(applyFilterParallelByCols, img, temp_cols, &shiftRight, temp_cols, final_cols, &shiftLeft);
 
-        // Блоки 32x32
+
         IplImage *temp_32 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         IplImage *final_32 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[0][3][valid_count] = timeTwoFiltersMs(applyFilterParallelByBlocks32, img, temp_32, &shiftRight, temp_32, final_32, &shiftLeft);
 
-        // Блоки 64x64
+
         IplImage *temp_64 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         IplImage *final_64 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[0][4][valid_count] = timeTwoFiltersMs(applyFilterParallelByBlocks64, img, temp_64, &shiftRight, temp_64, final_64, &shiftLeft);
 
-        // Блоки 128x128
+
         IplImage *temp_128 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         IplImage *final_128 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[0][5][valid_count] = timeTwoFiltersMs(applyFilterParallelByBlocks128, img, temp_128, &shiftRight, temp_128, final_128, &shiftLeft);
 
-        // Проверка: каждая параллельная стратегия и последовательная версия должны совпадать
+
         int eq_pixel_seq = imagesEqual(final_pixel, final_seq);
         int eq_pixel_rows = imagesEqual(final_pixel, final_rows);
         int eq_pixel_cols = imagesEqual(final_pixel, final_cols);
@@ -193,13 +191,13 @@ void testShiftComposition(void)
         {
             printf("Right-Left: results do not match between strategies for image %d!\n", i);
         }
-        assert(eq_pixel_seq && eq_pixel_rows && eq_pixel_cols && eq_pixel_32 && eq_pixel_64 && eq_pixel_128);
+        CHECK(eq_pixel_seq && eq_pixel_rows && eq_pixel_cols && eq_pixel_32 && eq_pixel_64 && eq_pixel_128);
 
-        // Проверка самого свойства: сдвиг вправо, потом влево == исходное изображение
+
         int eq_identity = imagesEqual(img, final_pixel);
         if (!eq_identity)
             printf("Right-Left composition failed for image %d\n", i);
-        assert(eq_identity);
+        CHECK(eq_identity);
 
         cvReleaseImage(&temp_seq);
         cvReleaseImage(&final_seq);
@@ -216,7 +214,7 @@ void testShiftComposition(void)
         cvReleaseImage(&temp_128);
         cvReleaseImage(&final_128);
 
-        // Up-Down (аналогично, только с shiftUp/shiftDown)
+
         temp_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         final_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[1][6][valid_count] = timeTwoFiltersMs(applyFilter, img, temp_seq, &shiftUp, temp_seq, final_seq, &shiftDown);
@@ -256,12 +254,12 @@ void testShiftComposition(void)
         {
             printf("Up-Down: results do not match between strategies for image %d!\n", i);
         }
-        assert(eq_pixel_seq && eq_pixel_rows && eq_pixel_cols && eq_pixel_32 && eq_pixel_64 && eq_pixel_128);
+        CHECK(eq_pixel_seq && eq_pixel_rows && eq_pixel_cols && eq_pixel_32 && eq_pixel_64 && eq_pixel_128);
 
         eq_identity = imagesEqual(img, final_pixel);
         if (!eq_identity)
             printf("Up-Down composition failed for image %d\n", i);
-        assert(eq_identity);
+        CHECK(eq_identity);
 
         cvReleaseImage(&temp_seq);
         cvReleaseImage(&final_seq);
@@ -278,7 +276,7 @@ void testShiftComposition(void)
         cvReleaseImage(&temp_128);
         cvReleaseImage(&final_128);
 
-        // Diag (с shiftDiagUp/shiftDiagDown)
+
         temp_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         final_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[2][6][valid_count] = timeTwoFiltersMs(applyFilter, img, temp_seq, &shiftDiagUp, temp_seq, final_seq, &shiftDiagDown);
@@ -318,12 +316,12 @@ void testShiftComposition(void)
         {
             printf("Diag: results do not match between strategies for image %d!\n", i);
         }
-        assert(eq_pixel_seq && eq_pixel_rows && eq_pixel_cols && eq_pixel_32 && eq_pixel_64 && eq_pixel_128);
+        CHECK(eq_pixel_seq && eq_pixel_rows && eq_pixel_cols && eq_pixel_32 && eq_pixel_64 && eq_pixel_128);
 
         eq_identity = imagesEqual(img, final_pixel);
         if (!eq_identity)
             printf("Diag composition failed for image %d\n", i);
-        assert(eq_identity);
+        CHECK(eq_identity);
 
         cvReleaseImage(&temp_seq);
         cvReleaseImage(&final_seq);
@@ -371,7 +369,6 @@ void testShiftComposition(void)
                times[2][6][i], times[2][0][i], times[2][1][i], times[2][2][i], times[2][3][i], times[2][4][i], times[2][5][i], imageNames[i]);
     }
 
-    printf("\n                                        TEST 2 PASSED\n");
 }
 
 void testZeroPadding(void)
@@ -380,7 +377,7 @@ void testZeroPadding(void)
     printf("                                        TEST 3: ZERO PADDING                                         \n");
     printf("\n");
 
-    double times[5][7][15] = {0}; // 5 фильтров × (6 параллельных стратегий + Seq) × 15 изображений
+    double times[5][7][15] = {0};
     int valid_count = 0;
 
     Filter original_filters[5];
@@ -390,21 +387,21 @@ void testZeroPadding(void)
     original_filters[3] = filter_sharpen1();
     original_filters[4] = filter_emboss1();
 
-    double kernel_blur_padded[5][5] = {
+    const double kernel_blur_padded[5][5] = {
         {0, 0, 0, 0, 0},
         {0, 0, 0.2, 0, 0},
         {0, 0.2, 0.2, 0.2, 0},
         {0, 0, 0.2, 0, 0},
         {0, 0, 0, 0, 0}};
 
-    double kernel_gauss_padded[5][5] = {
+    const double kernel_gauss_padded[5][5] = {
         {0, 0, 0, 0, 0},
         {0, 1, 2, 1, 0},
         {0, 2, 4, 2, 0},
         {0, 1, 2, 1, 0},
         {0, 0, 0, 0, 0}};
 
-    double kernel_edges_padded[7][7] = {
+    const double kernel_edges_padded[7][7] = {
         {0, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, -1, 0, 0, 0},
         {0, 0, 0, -1, 0, 0, 0},
@@ -413,14 +410,14 @@ void testZeroPadding(void)
         {0, 0, 0, 0, 0, 0, 0},
         {0, 0, 0, 0, 0, 0, 0}};
 
-    double kernel_sharpen_padded[5][5] = {
+    const double kernel_sharpen_padded[5][5] = {
         {0, 0, 0, 0, 0},
         {0, -1, -1, -1, 0},
         {0, -1, 9, -1, 0},
         {0, -1, -1, -1, 0},
         {0, 0, 0, 0, 0}};
 
-    double kernel_emboss_padded[5][5] = {
+    const double kernel_emboss_padded[5][5] = {
         {0, 0, 0, 0, 0},
         {0, -1, -1, 0, 0},
         {0, -1, 0, 1, 0},
@@ -447,35 +444,35 @@ void testZeroPadding(void)
 
         for (int j = 0; j < 5; j++)
         {
-            // Последовательная - эталон для сверки параллельных стратегий
+
             IplImage *result_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
             times[j][6][valid_count] = timeFilterMs(applyFilter, img, result_seq, &padded_filters[j]);
 
-            // Попиксельно
+
             IplImage *result_pixel = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
             times[j][0][valid_count] = timeFilterMs(applyFilterParallelPixelwise, img, result_pixel, &padded_filters[j]);
 
-            // По строкам
+
             IplImage *result_rows = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
             times[j][1][valid_count] = timeFilterMs(applyFilterParallelByRows, img, result_rows, &padded_filters[j]);
 
-            // По столбцам
+
             IplImage *result_cols = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
             times[j][2][valid_count] = timeFilterMs(applyFilterParallelByCols, img, result_cols, &padded_filters[j]);
 
-            // Блоки 32x32
+
             IplImage *result_32 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
             times[j][3][valid_count] = timeFilterMs(applyFilterParallelByBlocks32, img, result_32, &padded_filters[j]);
 
-            // Блоки 64x64
+
             IplImage *result_64 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
             times[j][4][valid_count] = timeFilterMs(applyFilterParallelByBlocks64, img, result_64, &padded_filters[j]);
 
-            // Блоки 128x128
+
             IplImage *result_128 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
             times[j][5][valid_count] = timeFilterMs(applyFilterParallelByBlocks128, img, result_128, &padded_filters[j]);
 
-            // Проверяем, что все стратегии (и последовательная) дают одинаковый результат
+
             int eq = imagesEqual(result_pixel, result_seq);
             if (eq)
                 eq = imagesEqual(result_pixel, result_rows);
@@ -492,7 +489,7 @@ void testZeroPadding(void)
             {
                 printf("ERROR: Filter %s on image %d: results do not match!\n", filter_names[j], i);
             }
-            assert(eq);
+            CHECK(eq);
 
             cvReleaseImage(&result_seq);
             cvReleaseImage(&result_pixel);
@@ -525,7 +522,6 @@ void testZeroPadding(void)
         printf("\n");
     }
 
-    printf("\n                                        TEST 3 PASSED\n");
 }
 
 void testZeroFilter(void)
@@ -534,10 +530,10 @@ void testZeroFilter(void)
     printf("                                        TEST 4: ZERO FILTER                                         \n");
     printf("\n");
 
-    double times[7][15] = {0}; // 6 параллельных стратегий + Seq
+    double times[7][15] = {0};
     int valid_count = 0;
 
-    double kernel_zero[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
+    const double kernel_zero[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
     Filter zero_filter = filter_create(3, 3, &kernel_zero[0][0], 1.0, 0.0);
 
     for (int i = 0; i < 15; i++)
@@ -549,36 +545,36 @@ void testZeroFilter(void)
             continue;
         }
 
-        // Последовательная - эталон для сверки параллельных стратегий
+
         IplImage *result_seq = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[6][valid_count] = timeFilterMs(applyFilter, img, result_seq, &zero_filter);
 
-        // Попиксельно
+
         IplImage *result_pixel = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[0][valid_count] = timeFilterMs(applyFilterParallelPixelwise, img, result_pixel, &zero_filter);
 
-        // По строкам
+
         IplImage *result_rows = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[1][valid_count] = timeFilterMs(applyFilterParallelByRows, img, result_rows, &zero_filter);
 
-        // По столбцам
+
         IplImage *result_cols = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[2][valid_count] = timeFilterMs(applyFilterParallelByCols, img, result_cols, &zero_filter);
 
-        // Блоки 32x32
+
         IplImage *result_32 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[3][valid_count] = timeFilterMs(applyFilterParallelByBlocks32, img, result_32, &zero_filter);
 
-        // Блоки 64x64
+
         IplImage *result_64 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[4][valid_count] = timeFilterMs(applyFilterParallelByBlocks64, img, result_64, &zero_filter);
 
-        // Блоки 128x128
+
         IplImage *result_128 = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         times[5][valid_count] = timeFilterMs(applyFilterParallelByBlocks128, img, result_128, &zero_filter);
 
-        // Проверка: у всех 6 параллельных стратегий и последовательной версии
-        // результат должен быть полностью чёрным (0,0,0) - не только у pixelwise.
+
+
         int black_seq = imageIsBlack(result_seq);
         int black_pixel = imageIsBlack(result_pixel);
         int black_rows = imageIsBlack(result_rows);
@@ -592,7 +588,7 @@ void testZeroFilter(void)
             printf("ERROR: Zero filter on image %d: result is not all black (seq=%d pix=%d rows=%d cols=%d blk32=%d blk64=%d blk128=%d)!\n",
                    i, black_seq, black_pixel, black_rows, black_cols, black_32, black_64, black_128);
         }
-        assert(black_seq && black_pixel && black_rows && black_cols && black_32 && black_64 && black_128);
+        CHECK(black_seq && black_pixel && black_rows && black_cols && black_32 && black_64 && black_128);
 
         cvReleaseImage(&result_seq);
         cvReleaseImage(&result_pixel);
@@ -631,25 +627,24 @@ void testZeroFilter(void)
     printf("Total: \t Seq: %8.2f ms \t Pix: %8.2f ms \t Rows: %8.2f ms \t Cols: %8.2f ms \t Blk32: %8.2f ms \t Blk64: %8.2f ms \t Blk128: %8.2f ms \n",
            total_seq, total_pixel, total_rows, total_cols, total_32, total_64, total_128);
 
-    printf("\n                                        TEST 4 PASSED\n");
 }
 
-// ---------------------------------------------------------------------------
-// TEST 5: property-based тесты на случайных данных
-//
-// В отличие от тестов 1-4 (фиксированные 15 реальных фотографий, только
-// параллельные стратегии друг против друга), здесь и изображения, и фильтры
-// генерируются случайно, с широким разбросом размеров, включая крайние случаи
-// (1x1 картинка, фильтр 1x1, фильтр близкий к размеру картинки). Классические
-// свойства свёртки (identity/zero/padding/композиция, как и в задаче 1)
-// проверяются НЕЗАВИСИМО на каждой из 7 реализаций (последовательная applyFilter
-// + все 6 параллельных стратегий, см. allStrategies) - т.е. каждое свойство
-// должно выполняться для каждой стратегии само по себе, а не только для
-// последовательной версии. Отдельно, по схеме тестирования из ТЗ ("на случайных
-// данных любая параллельная версия ведёт себя точно так же, как и
-// последовательная"), на ещё одном случайном фильтре все 6 параллельных
-// стратегий сверяются побайтово с результатом applyFilter.
-// ---------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 void testRandomizedProperties(void)
 {
@@ -661,11 +656,11 @@ void testRandomizedProperties(void)
     srand(seed);
 
     const int TRIALS = 30;
-    // Допуск для теста композиции: между двумя последовательными applyFilter
-    // результат первого прохода округляется double -> uint8, а однопроходный
-    // composed-фильтр этого промежуточного округления не делает. Разница
-    // ограничена (сумма весов A и B по отдельности <= 1), эмпирически не
-    // превышает 1-2 градации яркости.
+
+
+
+
+
     const int COMPOSITION_TOLERANCE = 2;
 
     Filter identity = filter_identity();
@@ -678,9 +673,9 @@ void testRandomizedProperties(void)
         int h = randomImageDim();
         IplImage *img = createRandomImage(w, h);
 
-        // (iv) identity не меняет изображение — при случайном размере картинки,
-        // проверяется на всех 7 реализациях (последовательная + 6 параллельных)
-        for (int s = 0; s < 7; s++)
+
+
+        for (int s = 0; s < NUM_STRATEGIES; s++)
         {
             IplImage *idOut = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
             double tId = timeFilterMs(allStrategies[s].fn, img, idOut, &identity);
@@ -690,19 +685,19 @@ void testRandomizedProperties(void)
             if (!eqId)
                 printf("  MISMATCH: trial %d, strategy %s, identity filter, img %dx%d\n",
                        t, allStrategies[s].name, w, h);
-            assert(eqId);
+            CHECK(eqId);
             cvReleaseImage(&idOut);
         }
 
-        // (iv) нулевой фильтр случайного нечётного размера -> чёрное изображение,
-        // проверяется на всех 7 реализациях
+
+
         int zw = randomOddSize(w);
         int zh = randomOddSize(h);
-        double *zeroData = (double *)calloc(zw * zh, sizeof(double));
+        double *zeroData = calloc(zw * zh, sizeof(double));
         Filter zeroFilter = filter_create(zw, zh, zeroData, 1.0, 0.0);
         free(zeroData);
 
-        for (int s = 0; s < 7; s++)
+        for (int s = 0; s < NUM_STRATEGIES; s++)
         {
             IplImage *zeroOut = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
             double tZero = timeFilterMs(allStrategies[s].fn, img, zeroOut, &zeroFilter);
@@ -712,30 +707,30 @@ void testRandomizedProperties(void)
             if (!isBlack)
                 printf("  MISMATCH: trial %d, strategy %s, zero filter not all black, img %dx%d\n",
                        t, allStrategies[s].name, w, h);
-            assert(isBlack);
+            CHECK(isBlack);
             cvReleaseImage(&zeroOut);
         }
         filter_free(&zeroFilter);
 
-        // (iii) расширение случайного фильтра кольцом нулей не меняет результат,
-        // проверяется на всех 7 реализациях
+
+
         int pw = randomOddSize(w);
         int ph = randomOddSize(h);
-        double *baseData = (double *)malloc(pw * ph * sizeof(double));
+        double *baseData = malloc(pw * ph * sizeof(double));
         for (int i = 0; i < pw * ph; i++)
-            baseData[i] = (double)(rand() % 5) - 2; // случайные веса в [-2, 2]
+            baseData[i] = (double)(rand() % 5) - 2;
         Filter base = filter_create(pw, ph, baseData, 1.0, 0.0);
         free(baseData);
 
         int padW = pw + 2, padH = ph + 2;
-        double *paddedData = (double *)calloc(padW * padH, sizeof(double));
+        double *paddedData = calloc(padW * padH, sizeof(double));
         for (int y = 0; y < ph; y++)
             for (int x = 0; x < pw; x++)
                 paddedData[(y + 1) * padW + (x + 1)] = base.matrix[y][x];
         Filter padded = filter_create(padW, padH, paddedData, 1.0, 0.0);
         free(paddedData);
 
-        for (int s = 0; s < 7; s++)
+        for (int s = 0; s < NUM_STRATEGIES; s++)
         {
             IplImage *baseOut = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
             IplImage *paddedOut = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
@@ -746,24 +741,24 @@ void testRandomizedProperties(void)
             if (!eqPad)
                 printf("  MISMATCH: trial %d, strategy %s, zero-padding, img %dx%d\n",
                        t, allStrategies[s].name, w, h);
-            assert(eqPad);
+            CHECK(eqPad);
             cvReleaseImage(&baseOut);
             cvReleaseImage(&paddedOut);
         }
         filter_free(&base);
         filter_free(&padded);
 
-        // (i) применение двух случайных фильтров подряд == один проход с их композицией,
-        // проверяется на всех 7 реализациях (обе стадии и composed-проход выполняются
-        // одной и той же реализацией - тем самым свойство проверяется независимо для
-        // каждой из них, а не только для последовательной)
+
+
+
+
         int aw = randomOddSize(w), ah = randomOddSize(h);
         int bw = randomOddSize(w), bh = randomOddSize(h);
         Filter fa = randomConvexFilter(aw, ah);
         Filter fb = randomConvexFilter(bw, bh);
         Filter composed = composeKernels(&fa, &fb);
 
-        for (int s = 0; s < 7; s++)
+        for (int s = 0; s < NUM_STRATEGIES; s++)
         {
             IplImage *mid = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
             IplImage *twoStage = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
@@ -787,7 +782,7 @@ void testRandomizedProperties(void)
                        t, allStrategies[s].name, w, h, aw, ah, bw, bh, diff);
                 fflush(stdout);
             }
-            assert(ok);
+            CHECK(ok);
 
             cvReleaseImage(&mid);
             cvReleaseImage(&twoStage);
@@ -797,32 +792,32 @@ void testRandomizedProperties(void)
         filter_free(&fb);
         filter_free(&composed);
 
-        // (новое для задачи 2, по схеме тестирования из ТЗ: "на случайных данных
-        // любая параллельная версия ведёт себя точно так же, как и последовательная")
-        // — на ещё одном случайном фильтре сверяем все 6 параллельных стратегий
-        // с последовательной applyFilter.
+
+
+
+
         int fw = randomOddSize(w), fh = randomOddSize(h);
         Filter randFilter = randomConvexFilter(fw, fh);
 
         IplImage *seqOut = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
         applyFilter(img, seqOut, &randFilter);
 
-        for (int s = 0; s < 6; s++)
+        for (int s = 1; s < NUM_STRATEGIES; s++)
         {
             IplImage *parOut = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
-            double tPar = timeFilterMs(parallelStrategies[s].fn, img, parOut, &randFilter);
+            double tPar = timeFilterMs(allStrategies[s].fn, img, parOut, &randFilter);
             printf("  trial %2d | img %2dx%-2d | %-9s %2dx%-2d          | %9.4f ms\n",
-                   t, w, h, parallelStrategies[s].name, fw, fh, tPar);
+                   t, w, h, allStrategies[s].name, fw, fh, tPar);
 
             int eqPar = imagesEqual(seqOut, parOut);
             if (!eqPar)
             {
                 parallel_mismatches++;
                 printf("  MISMATCH: trial %d, strategy %s vs sequential, filter %dx%d, img %dx%d\n",
-                       t, parallelStrategies[s].name, fw, fh, w, h);
+                       t, allStrategies[s].name, fw, fh, w, h);
                 fflush(stdout);
             }
-            assert(eqPar);
+            CHECK(eqPar);
 
             cvReleaseImage(&parOut);
         }
@@ -838,48 +833,26 @@ void testRandomizedProperties(void)
     printf("  max observed diff between sequential and composed-kernel pass: %d (tolerance %d)\n",
            max_diff_seen, COMPOSITION_TOLERANCE);
     printf("  parallel-vs-sequential mismatches: %d\n", parallel_mismatches);
-    printf("\n                                        TEST 5 PASSED (%d random trials)\n", TRIALS);
 }
 
-// TEST 6: сверка с эталонной библиотекой (OpenCV cv::filter2D через
-// referenceApplyFilter из tests_utils). Для каждой пары картинка/фильтр эталон
-// считается ОДИН раз, а затем с ним сверяется каждая из 7 реализаций
-// (последовательная applyFilter + все 6 параллельных стратегий, allStrategies) -
-// т.е. каждая стратегия проверяется напрямую против внешней библиотеки, а не
-// только транзитивно через сверку с applyFilter в TEST 5.
+
+
+
+
+
+
 
 void testReferenceLibrary(void)
 {
     printf("\n");
     printf("                                        TEST 6: REFERENCE LIBRARY (OpenCV filter2D)\n");
 
-    // Пара маленьких + пара больших картинок - чтобы не гонять cv::filter2D
-    // (плюс лишнее выделение double-буфера на каждый пиксель) по всем 15 файлам.
+
+
     const int imageIdx[] = {6, 3, 9, 5, 8};
     const int numImages = 5;
 
-    Filter filters[15];
-    const char *filterNames[15] = {
-        "blur3x3", "blur5x5", "gaussian3x3", "gaussian5x5", "motionblur",
-        "findedges1", "findedges2", "findedges3", "findedges4",
-        "sharpen1", "sharpen2", "sharpen3", "emboss1", "emboss2", "identity"};
-    filters[0] = filter_blur3x3();
-    filters[1] = filter_blur5x5();
-    filters[2] = filter_gaussian3x3();
-    filters[3] = filter_gaussian5x5();
-    filters[4] = filter_motionblur();
-    filters[5] = filter_findedges1();
-    filters[6] = filter_findedges2();
-    filters[7] = filter_findedges3();
-    filters[8] = filter_findedges4();
-    filters[9] = filter_sharpen1();
-    filters[10] = filter_sharpen2();
-    filters[11] = filter_sharpen3();
-    filters[12] = filter_emboss1();
-    filters[13] = filter_emboss2();
-    filters[14] = filter_identity();
-
-    const int TOLERANCE = 1; // запас на порядок суммирования double, см. referenceApplyFilter
+    const int TOLERANCE = 1;
     int max_diff_seen = 0;
     int mismatches = 0;
 
@@ -893,15 +866,17 @@ void testReferenceLibrary(void)
             continue;
         }
 
-        for (int j = 0; j < 15; j++)
+        for (int j = 0; j < NUM_FILTERS; j++)
         {
-            // Эталон один на пару картинка/фильтр - сверяем с ним все 7 реализаций.
-            IplImage *reference = referenceApplyFilter(img, &filters[j]);
+            Filter f = filter_by_id(j);
 
-            for (int s = 0; s < 7; s++)
+
+            IplImage *reference = referenceApplyFilter(img, &f);
+
+            for (int s = 0; s < NUM_STRATEGIES; s++)
             {
                 IplImage *ours = cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
-                double t = timeFilterMs(allStrategies[s].fn, img, ours, &filters[j]);
+                double t = timeFilterMs(allStrategies[s].fn, img, ours, &f);
 
                 int diff = 0;
                 int ok = imagesApproxEqual(ours, reference, TOLERANCE, &diff);
@@ -911,39 +886,43 @@ void testReferenceLibrary(void)
                 {
                     mismatches++;
                     printf("  MISMATCH: %s / %s / %s, max diff %d\n",
-                           imageNames[idx], filterNames[j], allStrategies[s].name, diff);
+                           imageNames[idx], filter_name(j), allStrategies[s].name, diff);
                 }
-                assert(ok);
+                CHECK(ok);
 
                 printf("  %-22s | %-12s %2dx%-2d | %-10s | img %4dx%-4d | %8.4f ms\n",
-                       imageNames[idx], filterNames[j], filters[j].width, filters[j].height,
+                       imageNames[idx], filter_name(j), f.width, f.height,
                        allStrategies[s].name, img->width, img->height, t);
 
                 cvReleaseImage(&ours);
             }
 
             cvReleaseImage(&reference);
+            filter_free(&f);
         }
 
         cvReleaseImage(&img);
-        printf("  %s vs cv::filter2D: OK (all %d filters)\n\n", imageNames[idx], 15);
+        printf("  %s vs cvFilter2D: OK (all %d filters)\n\n", imageNames[idx], NUM_FILTERS);
     }
-
-    for (int j = 0; j < 15; j++)
-        filter_free(&filters[j]);
 
     printf("  max observed diff vs OpenCV: %d (tolerance %d), mismatches: %d\n",
            max_diff_seen, TOLERANCE, mismatches);
-    printf("\n                                        TEST 6 PASSED\n");
 }
 
 int main(void)
 {
-    testIdentityFilter();
-    testShiftComposition();
-    testZeroPadding();
-    testZeroFilter();
-    testRandomizedProperties();
-    testReferenceLibrary();
-    return 0;
+    RUN_TEST(testIdentityFilter, "TEST 1: IDENTITY FILTER");
+    RUN_TEST(testShiftComposition, "TEST 2: SHIFT COMPOSITION");
+    RUN_TEST(testZeroPadding, "TEST 3: ZERO PADDING");
+    RUN_TEST(testZeroFilter, "TEST 4: ZERO FILTER");
+    RUN_TEST(testRandomizedProperties, "TEST 5: RANDOMIZED PROPERTIES");
+    RUN_TEST(testReferenceLibrary, "TEST 6: REFERENCE LIBRARY");
+
+    if (g_test_failures == 0)
+    {
+        printf("\n                                        ALL TESTS PASSED\n");
+        return 0;
+    }
+    printf("\n                                        TOTAL: %d FAILURE(S)\n", g_test_failures);
+    return 1;
 }
