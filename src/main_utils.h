@@ -3,13 +3,10 @@
 
 #include "filter.h"
 
-
-
 double get_time_ms(void);
 
-
-
-void benchmark_filter(const IplImage *src, IplImage *dst, const Filter *f, int repeat,
-                      double *out_min, double *out_mean, double *out_median);
+void benchmark_filter(const IplImage *src, IplImage *dst, const Filter *f,
+                      int repeat, double *out_min, double *out_mean,
+                      double *out_median);
 
 #endif
