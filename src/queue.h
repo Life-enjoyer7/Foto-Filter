@@ -3,16 +3,15 @@
 
 #include <pthread.h>
 
-typedef struct
-{
-    void **buffer;
-    int capacity;             // максимальное количество элементов
-    int head;                 // индекс для чтения (откуда забирать)
-    int tail;                 // индекс для записи (куда класть)
-    int count;                // текущее количество элементов
-    pthread_mutex_t mutex;    // мьютекс для синхронизации
-    pthread_cond_t not_empty; // условная переменная: "очередь не пуста"
-    pthread_cond_t not_full;  // условная переменная: "очередь не полна"
+typedef struct {
+  void **buffer;
+  int capacity;
+  int head;
+  int tail;
+  int count;
+  pthread_mutex_t mutex;
+  pthread_cond_t not_empty;
+  pthread_cond_t not_full;
 } Queue;
 
 Queue *queue_create(int capacity);

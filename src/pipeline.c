@@ -1,249 +1,172 @@
+#include "pipeline.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "pipeline.h"
+#include <unistd.h>
 
-static void *reader_func(void *arg)
-{
-    ReaderArgs *args = (ReaderArgs *)arg;
-    Queue *input_queue = args->input_queue;
-    const char **input_paths = args->input_paths;
-    const char **output_paths = args->output_paths;
-    int num_images = args->num_images;
-    int filter_id = args->filter_id;
-    int strategy_id = args->strategy_id;
-    int num_workers = args->num_workers;
+#define PIPELINE_QUEUE_CAPACITY 10
 
-    for (int i = 0; i < num_images; i++)
-    {
-        Job *job = job_create(i, input_paths[i], output_paths[i]);
-        if (!job)
-        {
-            fprintf(stderr, "Reader: failed to create job for %s\n", input_paths[i]);
-            continue;
-        }
+static void *reader_func(void *arg) {
+  ReaderArgs *args = (ReaderArgs *)arg;
+  Queue *input_queue = args->input_queue;
+  const char *const *input_paths = args->input_paths;
+  const char *const *output_paths = args->output_paths;
+  int num_images = args->num_images;
+  int filter_id = args->filter_id;
+  int strategy_id = args->strategy_id;
+  int num_workers = args->num_workers;
 
-        job->filter_id = filter_id;
-        job->strategy_id = strategy_id;
-
-        job->image = cvLoadImage(job->input_path, CV_LOAD_IMAGE_COLOR);
-        if (!job->image)
-        {
-            fprintf(stderr, "Reader: failed to load image: %s\n", job->input_path);
-            job_destroy(job);
-            continue;
-        }
-
-        printf("Reader: loaded %s (id=%d)\n", job->input_path, job->id);
-        queue_push(input_queue, job);
+  for (int i = 0; i < num_images; i++) {
+    Job *job = job_create(i, input_paths[i], output_paths[i]);
+    if (!job) {
+      fprintf(stderr, "Reader: failed to create job for %s\n", input_paths[i]);
+      continue;
     }
 
-    for (int i = 0; i < num_workers; i++)
-    {
-        queue_push(input_queue, NULL);
+    job->filter_id = filter_id;
+    job->strategy_id = strategy_id;
+
+    job->image = cvLoadImage(job->input_path, CV_LOAD_IMAGE_COLOR);
+    if (!job->image) {
+      fprintf(stderr, "Reader: failed to load image: %s\n", job->input_path);
+      job_destroy(job);
+      continue;
     }
 
-    printf("Reader: all %d images processed, sent %d poison pills\n",
-           num_images, num_workers);
+    printf("Reader: loaded %s (id=%d)\n", job->input_path, job->id);
+    queue_push(input_queue, job);
+  }
 
-    return NULL;
+  for (int i = 0; i < num_workers; i++) {
+    queue_push(input_queue, NULL);
+  }
+
+  printf("Reader: sent %d poison pills\n", num_workers);
+  return NULL;
 }
 
-static void *worker_func(void *arg)
-{
-    WorkerArgs *args = (WorkerArgs *)arg;
-    Queue *input_queue = args->input_queue;
-    Queue *output_queue = args->output_queue;
-    Filter *filters = args->filters;
-    int strategy_id = args->strategy_id;
+static void *worker_func(void *arg) {
+  WorkerArgs *args = (WorkerArgs *)arg;
+  Queue *input_queue = args->input_queue;
+  Queue *output_queue = args->output_queue;
+  Filter *filters = args->filters;
+  int strategy_id = args->strategy_id;
 
-    void (*apply_func)(const IplImage *, IplImage *, const Filter *);
+  FilterFn apply_func = allStrategies[strategy_id].fn;
 
-    switch (strategy_id)
-    {
-    case 0:
-        apply_func = applyFilter;
-        break;
-    case 1:
-        apply_func = applyFilterParallelPixelwise;
-        break;
-    case 2:
-        apply_func = applyFilterParallelByRows;
-        break;
-    case 3:
-        apply_func = applyFilterParallelByCols;
-        break;
-    case 4:
-        apply_func = applyFilterParallelByBlocks32;
-        break;
-    case 5:
-        apply_func = applyFilterParallelByBlocks64;
-        break;
-    case 6:
-        apply_func = applyFilterParallelByBlocks128;
-        break;
+  while (1) {
+    Job *job = queue_pop(input_queue);
 
-    default:
-        apply_func = applyFilterParallelByRows;
-        break;
+    if (job == NULL) {
+      queue_push(output_queue, NULL);
+      break;
     }
 
-    while (1)
-    {
-        Job *job = (Job *)queue_pop(input_queue);
+    IplImage *result = cvCreateImage(cvGetSize(job->image), job->image->depth,
+                                     job->image->nChannels);
 
-        if (job == NULL)
-        {
-            queue_push(output_queue, NULL);
-            break;
-        }
+    apply_func(job->image, result, &filters[job->filter_id]);
 
-        IplImage *result = cvCreateImage(cvGetSize(job->image),
-                                         job->image->depth,
-                                         job->image->nChannels);
+    job->result = result;
 
-        apply_func(job->image, result, &filters[job->filter_id]);
+    queue_push(output_queue, job);
+  }
 
-        job->result = result;
-
-        queue_push(output_queue, job);
-    }
-
-    return NULL;
+  return NULL;
 }
 
-static void *writer_func(void *arg)
-{
-    WriterArgs *args = (WriterArgs *)arg;
-    Queue *output_queue = args->output_queue;
-    int num_images = args->num_images;
-    int completed = 0;
+static void *writer_func(void *arg) {
+  WriterArgs *args = (WriterArgs *)arg;
+  Queue *output_queue = args->output_queue;
+  int num_workers = args->num_workers;
+  int completed = 0;
+  int poisons = 0;
 
-    printf("Writer: ожидается %d изображений\n", num_images);
+  while (poisons < num_workers) {
+    Job *job = queue_pop(output_queue);
 
-    while (completed < num_images)
-    {
-        Job *job = (Job *)queue_pop(output_queue);
-
-        if (job == NULL)
-        {
-            printf("Writer: получен poison pill\n");
-            continue;
-        }
-
-        if (!cvSaveImage(job->output_path, job->result))
-        {
-            fprintf(stderr, "Writer: failed to save %s\n", job->output_path);
-        }
-        else
-        {
-            printf("Writer: saved %s\n", job->output_path);
-        }
-
-        job_destroy(job);
-        completed++;
+    if (job == NULL) {
+      poisons++;
+      continue;
     }
 
-    printf("Writer: завершил работу, сохранено %d изображений\n", completed);
-    return NULL;
+    if (!cvSaveImage(job->output_path, job->result, 0)) {
+      fprintf(stderr, "Writer: failed to save %s\n", job->output_path);
+    } else {
+      printf("Writer: saved %s\n", job->output_path);
+    }
+
+    job_destroy(job);
+    completed++;
+  }
+
+  printf("Writer: saved %d images\n", completed);
+  return NULL;
 }
 
-void pipeline_run(const char **input_paths, const char **output_paths,
-                  int num_images, int filter_id, int strategy_id,
-                  int num_workers)
-{
-    printf("Pipeline: запуск с %d воркерами, фильтр %d, стратегия %d\n",
-           num_workers, filter_id, strategy_id);
+void pipeline_run(const char *const *input_paths,
+                  const char *const *output_paths, int num_images,
+                  int filter_id, int strategy_id, int num_workers) {
+  printf("Pipeline: %d workers, filter %d, strategy %d\n", num_workers,
+         filter_id, strategy_id);
 
-    Queue *input_queue = queue_create(10);
-    Queue *output_queue = queue_create(10);
+  Queue *input_queue = queue_create(PIPELINE_QUEUE_CAPACITY);
+  Queue *output_queue = queue_create(PIPELINE_QUEUE_CAPACITY);
 
-    // 15 стандартных фильтров
-    Filter filters[27];
-    filters[0] = filter_blur3x3();
-    filters[1] = filter_blur5x5();
-    filters[2] = filter_gaussian3x3();
-    filters[3] = filter_gaussian5x5();
-    filters[4] = filter_motionblur();
-    filters[5] = filter_findedges1();
-    filters[6] = filter_findedges2();
-    filters[7] = filter_findedges3();
-    filters[8] = filter_findedges4();
-    filters[9] = filter_sharpen1();
-    filters[10] = filter_sharpen2();
-    filters[11] = filter_sharpen3();
-    filters[12] = filter_emboss1();
-    filters[13] = filter_emboss2();
-    filters[14] = filter_identity();
+  Filter filters[NUM_FILTERS];
+  for (int i = 0; i < NUM_FILTERS; i++)
+    filters[i] = filter_by_id(i);
 
-    // Фильтры сдвига
-    filters[15] = filter_shift_right();
-    filters[16] = filter_shift_left();
-    filters[17] = filter_shift_up();
-    filters[18] = filter_shift_down();
-    filters[19] = filter_shift_diag_up();
-    filters[20] = filter_shift_diag_down();
+  int cores = (int)sysconf(_SC_NPROCESSORS_ONLN);
+  if (cores <= 0)
+    cores = 4;
+  int per_worker = cores / num_workers;
+  if (per_worker < 1)
+    per_worker = 1;
+  set_conv_threads(per_worker);
 
-    // Padded фильтры
-    filters[21] = filter_blur3x3_padded();
-    filters[22] = filter_gaussian3x3_padded();
-    filters[23] = filter_findedges1_padded();
-    filters[24] = filter_sharpen1_padded();
-    filters[25] = filter_emboss1_padded();
+  ReaderArgs reader_args = {.input_queue = input_queue,
+                            .input_paths = input_paths,
+                            .output_paths = output_paths,
+                            .num_images = num_images,
+                            .filter_id = filter_id,
+                            .strategy_id = strategy_id,
+                            .num_workers = num_workers};
 
-    // Zero фильтр
-    filters[26] = filter_zero();
+  WorkerArgs worker_args = {.input_queue = input_queue,
+                            .output_queue = output_queue,
+                            .filters = filters,
+                            .strategy_id = strategy_id};
 
-    ReaderArgs reader_args = {
-        .input_queue = input_queue,
-        .input_paths = input_paths,
-        .output_paths = output_paths,
-        .num_images = num_images,
-        .filter_id = filter_id,
-        .strategy_id = strategy_id,
-        .num_workers = num_workers};
+  WriterArgs writer_args = {.output_queue = output_queue,
+                            .num_workers = num_workers};
 
-    WorkerArgs worker_args = {
-        .input_queue = input_queue,
-        .output_queue = output_queue,
-        .filters = filters,
-        .strategy_id = strategy_id};
+  pthread_t reader, writer;
+  pthread_t workers[num_workers];
 
-    WriterArgs writer_args = {
-        .output_queue = output_queue,
-        .num_images = num_images};
+  pthread_create(&reader, NULL, reader_func, &reader_args);
 
-    pthread_t reader, writer;
-    pthread_t workers[num_workers];
+  for (int i = 0; i < num_workers; i++) {
+    pthread_create(&workers[i], NULL, worker_func, &worker_args);
+  }
 
-    pthread_create(&reader, NULL, reader_func, &reader_args);
+  pthread_create(&writer, NULL, writer_func, &writer_args);
 
-    for (int i = 0; i < num_workers; i++)
-    {
-        pthread_create(&workers[i], NULL, worker_func, &worker_args);
-    }
+  pthread_join(reader, NULL);
+  printf("Pipeline: reader done\n");
 
-    pthread_create(&writer, NULL, writer_func, &writer_args);
+  for (int i = 0; i < num_workers; i++) {
+    pthread_join(workers[i], NULL);
+    printf("Pipeline: worker %d done\n", i);
+  }
 
-    pthread_join(reader, NULL);
-    printf("Pipeline: читатель завершил работу\n");
+  pthread_join(writer, NULL);
+  printf("Pipeline: writer done\n");
 
-    for (int i = 0; i < num_workers; i++)
-    {
-        pthread_join(workers[i], NULL);
-        printf("Pipeline: воркер %d завершил работу\n", i);
-    }
+  for (int i = 0; i < NUM_FILTERS; i++)
+    filter_free(&filters[i]);
 
-    pthread_join(writer, NULL);
-    printf("Pipeline: писатель завершил работу\n");
-
-    // Очистка всех фильтров (все 27: 15 стандартных + 6 сдвига + 5 padded + zero)
-    for (int i = 0; i < 27; i++)
-    {
-        filter_free(&filters[i]);
-    }
-
-    queue_destroy(input_queue);
-    queue_destroy(output_queue);
+  queue_destroy(input_queue);
+  queue_destroy(output_queue);
 }

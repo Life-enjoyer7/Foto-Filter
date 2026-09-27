@@ -1,13 +1,15 @@
-CC = g++
-CFLAGS = -Wall -g -O2
-INCLUDES = -I src -I/usr/local/opencv3.4/include
+CC = gcc
+CFLAGS = -std=gnu11 -Wall -g -O2
 
-OPENCV_LIBS = -L/usr/local/opencv3.4/lib \
-              -lopencv_highgui \
+OPENCV_PREFIX ?= /usr/local/opencv3.4
+INCLUDES = -I src -I$(OPENCV_PREFIX)/include
+
+OPENCV_LIBS = -L$(OPENCV_PREFIX)/lib \
               -lopencv_imgcodecs \
               -lopencv_imgproc \
               -lopencv_core \
-              -Wl,-rpath,/usr/local/opencv3.4/lib
+              -lstdc++ -lm \
+              -Wl,-rpath,$(OPENCV_PREFIX)/lib
 
 PTHREADFLAGS = -pthread
 
