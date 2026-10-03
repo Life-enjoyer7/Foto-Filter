@@ -16,8 +16,11 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  printf("image,width,height,filter,filter_w,filter_h,strategy,repeat,min_ms,"
-         "mean_ms,median_ms\n");
+  printf("image,width,height,filter,filter_w,filter_h,strategy,threads,repeat,"
+         "min_ms,mean_ms,median_ms\n");
+
+  int thread_counts[] = {1, 2, 4, 8, 16};
+  int num_thread_counts = sizeof(thread_counts) / sizeof(thread_counts[0]);
 
   for (int i = 0; i < 15; i++) {
     IplImage *img = cvLoadImage(imagePaths[i], 1);
@@ -30,19 +33,26 @@ int main(int argc, char *argv[]) {
       Filter f = filter_by_id(j);
 
       for (int s = 0; s < NUM_STRATEGIES; s++) {
-        IplImage *dst =
-            cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
+        int configs = (s == 0) ? 1 : num_thread_counts;
+        for (int c = 0; c < configs; c++) {
+          int threads = (s == 0) ? 0 : thread_counts[c];
+          set_conv_threads(threads);
 
-        double min_ms, mean_ms, median_ms;
-        benchmark_filter(allStrategies[s].fn, img, dst, &f, repeat, &min_ms,
-                         &mean_ms, &median_ms);
+          IplImage *dst =
+              cvCreateImage(cvGetSize(img), img->depth, img->nChannels);
 
-        printf("%s,%d,%d,%s,%d,%d,%s,%d,%.4f,%.4f,%.4f\n", imageNames[i],
-               img->width, img->height, filter_name(j), f.width, f.height,
-               allStrategies[s].name, repeat, min_ms, mean_ms, median_ms);
-        fflush(stdout);
+          double min_ms, mean_ms, median_ms;
+          benchmark_filter(allStrategies[s].fn, img, dst, &f, repeat, &min_ms,
+                           &mean_ms, &median_ms);
 
-        cvReleaseImage(&dst);
+          printf("%s,%d,%d,%s,%d,%d,%s,%d,%d,%.4f,%.4f,%.4f\n", imageNames[i],
+                 img->width, img->height, filter_name(j), f.width, f.height,
+                 allStrategies[s].name, threads, repeat, min_ms, mean_ms,
+                 median_ms);
+          fflush(stdout);
+
+          cvReleaseImage(&dst);
+        }
       }
 
       filter_free(&f);

@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-void testIdentityFilter(void) {
+static void testIdentityFilter(void) {
   printf("\n");
   printf("                                        TEST 1: IDENTITY FILTER      "
          "                   \n");
@@ -125,7 +125,7 @@ void testIdentityFilter(void) {
   filter_free(&identity);
 }
 
-void testShiftComposition(void) {
+static void testShiftComposition(void) {
   printf("\n");
   printf("                                        TEST 2: SHIFT COMPOSITION    "
          "                     \n");
@@ -438,7 +438,7 @@ void testShiftComposition(void) {
   }
 }
 
-void testZeroPadding(void) {
+static void testZeroPadding(void) {
   printf("\n");
   printf("                                        TEST 3: ZERO PADDING         "
          "                                \n");
@@ -590,7 +590,7 @@ void testZeroPadding(void) {
   }
 }
 
-void testZeroFilter(void) {
+static void testZeroFilter(void) {
   printf("\n");
   printf("                                        TEST 4: ZERO FILTER          "
          "                               \n");
@@ -704,7 +704,7 @@ void testZeroFilter(void) {
       total_128);
 }
 
-void testRandomizedProperties(void) {
+static void testRandomizedProperties(void) {
   printf("\n");
   printf("                                        TEST 5: RANDOMIZED "
          "PROPERTIES (random image/filter sizes)\n");
@@ -889,7 +889,7 @@ void testRandomizedProperties(void) {
   printf("  parallel-vs-sequential mismatches: %d\n", parallel_mismatches);
 }
 
-void testReferenceLibrary(void) {
+static void testReferenceLibrary(void) {
   printf("\n");
   printf("                                        TEST 6: REFERENCE LIBRARY "
          "(OpenCV filter2D)\n");

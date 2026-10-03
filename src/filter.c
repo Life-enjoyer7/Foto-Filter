@@ -9,6 +9,10 @@
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
+static int g_conv_threads = 0;
+
+void set_conv_threads(int n) { g_conv_threads = n; }
+
 Filter filter_create(int w, int h, const double *data, double f, double b) {
   Filter flt;
   flt.width = w;
@@ -148,14 +152,14 @@ Filter filter_emboss2(void) {
 
 typedef Filter (*filter_factory_t)(void);
 
-const filter_factory_t filter_factories[NUM_FILTERS] = {
+static const filter_factory_t filter_factories[NUM_FILTERS] = {
     filter_blur3x3,     filter_blur5x5,    filter_gaussian3x3,
     filter_gaussian5x5, filter_motionblur, filter_findedges1,
     filter_findedges2,  filter_findedges3, filter_findedges4,
     filter_sharpen1,    filter_sharpen2,   filter_sharpen3,
     filter_emboss1,     filter_emboss2,    filter_identity};
 
-const char *const filter_names[NUM_FILTERS] = {
+static const char *const filter_names[NUM_FILTERS] = {
     "blur3x3",    "blur5x5",    "gaussian3x3", "gaussian5x5", "motionblur",
     "findedges1", "findedges2", "findedges3",  "findedges4",  "sharpen1",
     "sharpen2",   "sharpen3",   "emboss1",     "emboss2",     "identity"};
@@ -275,7 +279,8 @@ void applyFilterParallelPixelwise(const IplImage *src, IplImage *dst,
   int h = src->height;
   int totalPixels = w * h;
 
-  int numThreads = sysconf(_SC_NPROCESSORS_ONLN);
+  int numThreads =
+      g_conv_threads > 0 ? g_conv_threads : sysconf(_SC_NPROCESSORS_ONLN);
   if (numThreads <= 0)
     numThreads = 4;
 
@@ -372,7 +377,8 @@ void applyFilterParallelByRows(const IplImage *src, IplImage *dst,
   int w = src->width;
   int h = src->height;
 
-  int numThreads = sysconf(_SC_NPROCESSORS_ONLN);
+  int numThreads =
+      g_conv_threads > 0 ? g_conv_threads : sysconf(_SC_NPROCESSORS_ONLN);
   if (numThreads <= 0)
     numThreads = 4;
 
@@ -472,7 +478,8 @@ void applyFilterParallelByCols(const IplImage *src, IplImage *dst,
   int w = src->width;
   int h = src->height;
 
-  int numThreads = sysconf(_SC_NPROCESSORS_ONLN);
+  int numThreads =
+      g_conv_threads > 0 ? g_conv_threads : sysconf(_SC_NPROCESSORS_ONLN);
   if (numThreads <= 0)
     numThreads = 4;
 
@@ -574,8 +581,9 @@ static void *processBlock(void *args) {
   return NULL;
 }
 
-void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst,
-                                 const Filter *f, int blockW, int blockH) {
+static void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst,
+                                        const Filter *f, int blockW,
+                                        int blockH) {
   cvZero(dst);
 
   int w = src->width;
@@ -585,7 +593,8 @@ void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst,
   int blocksY = (h + blockH - 1) / blockH;
   int totalBlocks = blocksX * blocksY;
 
-  int numThreads = sysconf(_SC_NPROCESSORS_ONLN);
+  int numThreads =
+      g_conv_threads > 0 ? g_conv_threads : sysconf(_SC_NPROCESSORS_ONLN);
   if (numThreads <= 0)
     numThreads = 4;
   if (numThreads > totalBlocks)

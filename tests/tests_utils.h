@@ -24,8 +24,8 @@ extern int g_test_failures;
         g_test_failures - _failures_before);                                   \
   } while (0)
 
-extern const char *imagePaths[];
-extern const char *imageNames[];
+extern const char *const imagePaths[];
+extern const char *const imageNames[];
 
 double timeFilterMs(FilterFn fn, const IplImage *src, IplImage *dst,
                     const Filter *f);

@@ -6,7 +6,7 @@
 
 int g_test_failures = 0;
 
-const char *imagePaths[15] = {
+const char *const imagePaths[15] = {
     "images/bugatti_1200x600.jpg",    "images/bugatti_1536x2048.jpg",
     "images/bugatti_3275x4096.jpg",   "images/ferari_320x320.jpg",
     "images/ferrari_2560x1440.jpg",   "images/ford_1080x1080.jpg",
@@ -16,7 +16,7 @@ const char *imagePaths[15] = {
     "images/sportcar_3823x4237.jpg",  "images/bugatti_big_size.jpg",
     "images/car_1200x687.jpeg"};
 
-const char *imageNames[15] = {
+const char *const imageNames[15] = {
     "bugatti_1200x600.jpg",    "bugatti_1536x2048.jpg",
     "bugatti_3275x4096.jpg",   "ferari_320x320.jpg",
     "ferrari_2560x1440.jpg",   "ford_1080x1080.jpg",
