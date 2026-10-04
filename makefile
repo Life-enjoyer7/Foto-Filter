@@ -41,6 +41,7 @@ build: $(BUILD_DIR)/$(NAME)
 
 # Тесты
 test: $(BUILD_DIR)/$(NAME_TEST)
+	mkdir -p new_images
 	$(BUILD_DIR)/$(NAME_TEST)
 
 bench-bin: $(BUILD_DIR)/$(NAME_BENCH)

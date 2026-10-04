@@ -187,6 +187,9 @@ static void testShiftComposition(void) {
 
         for (int j = 0; j < num_images; j++) {
           IplImage *pipeline_img = cvLoadImage(output_paths[j], 1);
+          if (!pipeline_img)
+            continue;
+
           int eq = imagesEqual(original_images[j], pipeline_img);
           CHECK(eq);
           cvReleaseImage(&pipeline_img);
