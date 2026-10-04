@@ -12,10 +12,19 @@ void generate_output_paths(const char *const *input_paths, char **output_paths,
 
 int imagesEqual(const IplImage *a, const IplImage *b);
 
+void sequential_run(const char *const *input_paths,
+                    const char *const *output_paths, int num_images,
+                    int filter_id);
+
 void benchmark_pipeline(const char *const *input_paths,
                         const char *const *output_paths, int num_images,
                         int filter_id, int strategy_id, int num_workers,
-                        int repeat, double *out_min, double *out_mean,
-                        double *out_median);
+                        int queue_capacity, int repeat, double *out_min,
+                        double *out_mean, double *out_median);
+
+void benchmark_sequential(const char *const *input_paths,
+                          const char *const *output_paths, int num_images,
+                          int filter_id, int repeat, double *out_min,
+                          double *out_mean, double *out_median);
 
 #endif

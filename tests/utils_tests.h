@@ -24,7 +24,7 @@ extern int g_test_failures;
         g_test_failures - _failures_before);                                   \
   } while (0)
 
-extern const char *strategy_names[7];
+extern const char *const strategy_names[7];
 
 #define PIPELINE_BENCH_REPEAT 2
 

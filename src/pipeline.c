@@ -5,8 +5,6 @@
 #include <string.h>
 #include <unistd.h>
 
-#define PIPELINE_QUEUE_CAPACITY 10
-
 static void *reader_func(void *arg) {
   ReaderArgs *args = (ReaderArgs *)arg;
   Queue *input_queue = args->input_queue;
@@ -107,12 +105,13 @@ static void *writer_func(void *arg) {
 
 void pipeline_run(const char *const *input_paths,
                   const char *const *output_paths, int num_images,
-                  int filter_id, int strategy_id, int num_workers) {
+                  int filter_id, int strategy_id, int num_workers,
+                  int queue_capacity) {
   printf("Pipeline: %d workers, filter %d, strategy %d\n", num_workers,
          filter_id, strategy_id);
 
-  Queue *input_queue = queue_create(PIPELINE_QUEUE_CAPACITY);
-  Queue *output_queue = queue_create(PIPELINE_QUEUE_CAPACITY);
+  Queue *input_queue = queue_create(queue_capacity);
+  Queue *output_queue = queue_create(queue_capacity);
 
   Filter filters[NUM_FILTERS];
   for (int i = 0; i < NUM_FILTERS; i++)

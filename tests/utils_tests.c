@@ -4,7 +4,7 @@
 
 int g_test_failures = 0;
 
-const char *strategy_names[7] = {
+const char *const strategy_names[7] = {
     "Sequential",   "Pixelwise",    "By Rows",       "By Cols",
     "Blocks 32x32", "Blocks 64x64", "Blocks 128x128"};
 

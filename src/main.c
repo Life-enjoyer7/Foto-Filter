@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
   double total_start = get_time_ms();
 
   pipeline_run(input_paths, output_paths, num_images, filter_id, strategy_id,
-               num_workers);
+               num_workers, 10);
 
   double total_end = get_time_ms();
 

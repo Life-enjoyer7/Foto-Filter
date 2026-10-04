@@ -29,6 +29,7 @@ typedef struct {
 
 void pipeline_run(const char *const *input_paths,
                   const char *const *output_paths, int num_images,
-                  int filter_id, int strategy_id, int num_workers);
+                  int filter_id, int strategy_id, int num_workers,
+                  int queue_capacity);
 
 #endif

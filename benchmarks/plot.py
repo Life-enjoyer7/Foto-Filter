@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Строит графики из CSV, сгенерированного benchmarks/bench.c (см. `make benchmark`)."""
+"""Строит графики из CSV, сгенерированного benchmarks/bench.c (см. `make benchmark`).
+
+Три больших грида (small multiples, 3x5 = 15 фильтров):
+- ускорение параллельных стратегий относительно буквально-последовательной версии;
+- время vs число воркеров;
+- время vs размер очереди.
+"""
 
 import csv
 import os
@@ -11,7 +17,27 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-STRATEGIES = ["Sequential", "Pixelwise", "By Rows", "By Cols", "Blocks 32x32", "Blocks 64x64", "Blocks 128x128"]
+STRATEGIES = [
+    "Pixelwise", "By Rows", "By Cols", "Blocks 32x32", "Blocks 64x64",
+    "Blocks 128x128",
+]
+
+BASELINE = "Baseline"
+
+FILTERS = [
+    "blur3x3", "blur5x5", "gaussian3x3", "gaussian5x5", "motionblur",
+    "findedges1", "findedges2", "findedges3", "findedges4",
+    "sharpen1", "sharpen2", "sharpen3", "emboss1", "emboss2", "identity",
+]
+
+WORKERS = [1, 4, 8, 16]
+QUEUE_CAPACITIES = [1, 2, 4, 8, 16, 32, 64]
+DEFAULT_CAPACITY = 10
+
+METRIC = "min_ms"
+
+NROWS = 3
+NCOLS = 5
 
 
 def load(path):
@@ -19,6 +45,7 @@ def load(path):
     with open(path, newline="") as f:
         for row in csv.DictReader(f):
             row["workers"] = int(row["workers"])
+            row["queue_capacity"] = int(row["queue_capacity"])
             row["num_images"] = int(row["num_images"])
             row["min_ms"] = float(row["min_ms"])
             row["mean_ms"] = float(row["mean_ms"])
@@ -27,70 +54,152 @@ def load(path):
     return rows
 
 
-def plot_speedup_per_filter(rows, outdir):
-    """Для каждого фильтра - среднее (по всем конфигурациям потоков) ускорение
-    каждой параллельной стратегии относительно Sequential."""
-    by_filter = defaultdict(lambda: defaultdict(dict))
+def _baseline_time(rows, filt):
     for r in rows:
-        by_filter[r["filter"]][r["strategy"]][r["workers"]] = r["median_ms"]
+        if r["filter"] == filt and r["strategy"] == BASELINE:
+            return r[METRIC]
+    return None
 
-    for filt, by_strategy in by_filter.items():
-        seq = by_strategy.get("Sequential")
-        if not seq:
+
+def _workers_data(rows, filt):
+    out = defaultdict(dict)
+    for r in rows:
+        if (r["filter"] == filt and r["strategy"] != BASELINE and
+                r["queue_capacity"] == DEFAULT_CAPACITY):
+            out[r["strategy"]][r["workers"]] = r[METRIC]
+    return out
+
+
+def _queue_data(rows, filt):
+    out = defaultdict(dict)
+    for r in rows:
+        if (r["filter"] == filt and r["strategy"] != BASELINE and
+                r["queue_capacity"] in QUEUE_CAPACITIES):
+            out[r["strategy"]][r["queue_capacity"]] = r[METRIC]
+    return out
+
+
+def _speedup_data(rows, filt):
+    base = _baseline_time(rows, filt)
+    data = _workers_data(rows, filt)
+    if not base:
+        return [], []
+
+    strategies, speedups = [], []
+    for s in STRATEGIES:
+        vals = [v for v in data.get(s, {}).values() if v > 0]
+        if not vals:
             continue
+        strategies.append(s)
+        speedups.append(base / (sum(vals) / len(vals)))
+    return strategies, speedups
 
-        strategies, speedups = [], []
-        for s in STRATEGIES:
-            if s == "Sequential" or s not in by_strategy:
-                continue
-            ratios = [seq[w] / t for w, t in by_strategy[s].items() if w in seq and t > 0]
-            if not ratios:
-                continue
-            strategies.append(s)
-            speedups.append(sum(ratios) / len(ratios))
 
+def _new_grid(suptitle):
+    fig, axes = plt.subplots(NROWS, NCOLS, figsize=(22, 11), squeeze=False)
+    fig.suptitle(suptitle, fontsize=14)
+    return fig, axes
+
+
+def _shared_legend(fig, ax):
+    handles, labels = ax.get_legend_handles_labels()
+    if handles:
+        fig.legend(handles, labels, loc="lower center", ncol=len(labels),
+                   fontsize=8)
+
+
+def _label_edges(axes, ylabel, xlabel):
+    nrows, ncols = axes.shape
+    for r in range(nrows):
+        for c in range(ncols):
+            ax = axes[r, c]
+            if c == 0:
+                ax.set_ylabel(ylabel)
+            if r == nrows - 1:
+                ax.set_xlabel(xlabel)
+            if r != nrows - 1:
+                ax.tick_params(axis="x", labelbottom=False)
+
+
+def _save(fig, outdir, base):
+    fig.tight_layout(rect=[0, 0.04, 1, 0.97])
+    fig.savefig(os.path.join(outdir, base + ".png"), dpi=200)
+    fig.savefig(os.path.join(outdir, base + ".svg"))
+    plt.close(fig)
+
+
+def plot_speedup_grid(rows, outdir):
+    fig, axes = _new_grid("Ускорение vs последовательная")
+
+    for ax, filt in zip(axes.flat, FILTERS):
+        strategies, speedups = _speedup_data(rows, filt)
         if not strategies:
+            ax.set_visible(False)
             continue
 
-        fig, ax = plt.subplots(figsize=(8, 5))
         bars = ax.bar(strategies, speedups, color="#4C72B0")
         ax.axhline(1.0, color="gray", linestyle="--", linewidth=1)
-        ax.set_ylabel("Среднее ускорение относительно Sequential")
-        ax.set_title(f"Ускорение по стратегиям — {filt}")
-        plt.setp(ax.get_xticklabels(), rotation=20, ha="right")
+        ax.set_title(filt, fontsize=9)
+        ax.tick_params(axis="x", labelrotation=45, labelsize=7)
+        ax.tick_params(axis="y", labelsize=7)
         for b, v in zip(bars, speedups):
-            ax.text(b.get_x() + b.get_width() / 2, v, f"{v:.2f}x", ha="center", va="bottom")
-        fig.tight_layout()
-        fig.savefig(os.path.join(outdir, f"{filt}_speedup.png"), dpi=150)
-        plt.close(fig)
+            ax.text(b.get_x() + b.get_width() / 2, v, f"{v:.1f}x",
+                    ha="center", va="bottom", fontsize=6)
+
+    _label_edges(axes, "Ускорение, x", "Стратегия")
+    _save(fig, outdir, "speedup_all")
 
 
-def plot_time_vs_workers(rows, outdir, filt):
-    """Время (медиана) в зависимости от числа воркеров для каждой стратегии,
-    на фиксированном фильтре - показывает, окупается ли добавление потоков."""
-    subset = [r for r in rows if r["filter"] == filt]
-    if not subset:
-        return
+def plot_time_vs_workers_grid(rows, outdir):
+    fig, axes = _new_grid("Время vs воркеры")
 
-    by_strategy = defaultdict(list)
-    for r in subset:
-        by_strategy[r["strategy"]].append((r["workers"], r["median_ms"]))
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    for s in STRATEGIES:
-        pts = sorted(set(by_strategy.get(s, [])))
-        if not pts:
+    for ax, filt in zip(axes.flat, FILTERS):
+        data = _workers_data(rows, filt)
+        if not data:
+            ax.set_visible(False)
             continue
-        xs, ys = zip(*pts)
-        ax.plot(xs, ys, marker="o", label=s)
 
-    ax.set_xlabel("Число воркеров")
-    ax.set_ylabel("Время, мс (медиана, весь images/)")
-    ax.set_title(f"Время выполнения pipeline vs число воркеров — {filt}")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(os.path.join(outdir, f"{filt}_time_vs_workers.png"), dpi=150)
-    plt.close(fig)
+        for s in STRATEGIES:
+            by_workers = data.get(s, {})
+            if not by_workers:
+                continue
+            xs = [w for w in WORKERS if w in by_workers]
+            ax.plot(xs, [by_workers[w] for w in xs], marker="o", markersize=2,
+                    label=s)
+
+        ax.set_xticks(WORKERS)
+        ax.set_title(filt, fontsize=9)
+        ax.tick_params(labelsize=7)
+
+    _shared_legend(fig, axes[0, 0])
+    _label_edges(axes, "Время, мс", "Воркеры")
+    _save(fig, outdir, "time_vs_workers_all")
+
+
+def plot_time_vs_queue_grid(rows, outdir):
+    fig, axes = _new_grid("Время vs очередь")
+
+    for ax, filt in zip(axes.flat, FILTERS):
+        data = _queue_data(rows, filt)
+        if not data:
+            ax.set_visible(False)
+            continue
+
+        for s in STRATEGIES:
+            by_capacity = data.get(s, {})
+            if not by_capacity:
+                continue
+            xs = [c for c in QUEUE_CAPACITIES if c in by_capacity]
+            ax.plot(xs, [by_capacity[c] for c in xs], marker="o", markersize=2,
+                    label=s)
+
+        ax.set_xticks(QUEUE_CAPACITIES)
+        ax.set_title(filt, fontsize=9)
+        ax.tick_params(labelsize=7)
+
+    _shared_legend(fig, axes[0, 0])
+    _label_edges(axes, "Время, мс", "Размер очереди")
+    _save(fig, outdir, "time_vs_queue_all")
 
 
 def main():
@@ -103,30 +212,9 @@ def main():
         print(f"No data in {csv_path}", file=sys.stderr)
         return 1
 
-    # 1. Графики ускорения для всех фильтров
-    plot_speedup_per_filter(rows, outdir)
-
-    # 2. Графики время vs воркеры для всех 15 фильтров
-    filters_to_plot = [
-        "blur3x3",
-        "blur5x5",
-        "gaussian3x3",
-        "gaussian5x5",
-        "motionblur",
-        "findedges1",
-        "findedges2",
-        "findedges3",
-        "findedges4",
-        "sharpen1",
-        "sharpen2",
-        "sharpen3",
-        "emboss1",
-        "emboss2",
-        "identity"
-    ]
-
-    for filt in filters_to_plot:
-        plot_time_vs_workers(rows, outdir, filt=filt)
+    plot_speedup_grid(rows, outdir)
+    plot_time_vs_workers_grid(rows, outdir)
+    plot_time_vs_queue_grid(rows, outdir)
 
     print(f"Wrote plots to {outdir}")
     return 0

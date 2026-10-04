@@ -643,8 +643,9 @@ static void *processBlock(void *args) {
   return NULL;
 }
 
-void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst,
-                                 const Filter *f, int blockW, int blockH) {
+static void applyFilterParallelByBlocks(const IplImage *src, IplImage *dst,
+                                        const Filter *f, int blockW,
+                                        int blockH) {
   cvZero(dst);
 
   int w = src->width;
@@ -706,7 +707,7 @@ void applyFilterParallelByBlocks128(const IplImage *src, IplImage *dst,
 
 typedef Filter (*filter_factory_t)(void);
 
-const filter_factory_t filter_factories[NUM_FILTERS] = {
+static const filter_factory_t filter_factories[NUM_FILTERS] = {
     filter_blur3x3,
     filter_blur5x5,
     filter_gaussian3x3,
@@ -735,33 +736,33 @@ const filter_factory_t filter_factories[NUM_FILTERS] = {
     filter_emboss1_padded,
     filter_zero};
 
-const char *const filter_names[NUM_FILTERS] = {"blur3x3",
-                                               "blur5x5",
-                                               "gaussian3x3",
-                                               "gaussian5x5",
-                                               "motionblur",
-                                               "findedges1",
-                                               "findedges2",
-                                               "findedges3",
-                                               "findedges4",
-                                               "sharpen1",
-                                               "sharpen2",
-                                               "sharpen3",
-                                               "emboss1",
-                                               "emboss2",
-                                               "identity",
-                                               "shift_right",
-                                               "shift_left",
-                                               "shift_up",
-                                               "shift_down",
-                                               "shift_diag_up",
-                                               "shift_diag_down",
-                                               "blur3x3_padded",
-                                               "gaussian3x3_padded",
-                                               "findedges1_padded",
-                                               "sharpen1_padded",
-                                               "emboss1_padded",
-                                               "zero"};
+static const char *const filter_names[NUM_FILTERS] = {"blur3x3",
+                                                      "blur5x5",
+                                                      "gaussian3x3",
+                                                      "gaussian5x5",
+                                                      "motionblur",
+                                                      "findedges1",
+                                                      "findedges2",
+                                                      "findedges3",
+                                                      "findedges4",
+                                                      "sharpen1",
+                                                      "sharpen2",
+                                                      "sharpen3",
+                                                      "emboss1",
+                                                      "emboss2",
+                                                      "identity",
+                                                      "shift_right",
+                                                      "shift_left",
+                                                      "shift_up",
+                                                      "shift_down",
+                                                      "shift_diag_up",
+                                                      "shift_diag_down",
+                                                      "blur3x3_padded",
+                                                      "gaussian3x3_padded",
+                                                      "findedges1_padded",
+                                                      "sharpen1_padded",
+                                                      "emboss1_padded",
+                                                      "zero"};
 
 Filter filter_by_id(int id) { return filter_factories[id](); }
 

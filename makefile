@@ -48,7 +48,7 @@ bench-bin: $(BUILD_DIR)/$(NAME_BENCH)
 # Полный перебор фильтр x стратегия x число воркеров -> CSV -> PNG-графики.
 benchmark: bench-bin
 	mkdir -p $(BENCH_OUT_DIR) $(BENCH_OUT_DIR)/bench_out
-	$(BUILD_DIR)/$(NAME_BENCH) $(REPEAT) | grep -E "^filter,strategy,workers,num_images|blur3x3|blur5x5|gaussian3x3|gaussian5x5|motionblur|findedges1|findedges2|findedges3|findedges4|sharpen1|sharpen2|sharpen3|emboss1|emboss2|identity" > $(BENCH_OUT_DIR)/bench_results.csv
+	$(BUILD_DIR)/$(NAME_BENCH) $(REPEAT) | grep -E "^filter,strategy,workers,queue_capacity,num_images|blur3x3|blur5x5|gaussian3x3|gaussian5x5|motionblur|findedges1|findedges2|findedges3|findedges4|sharpen1|sharpen2|sharpen3|emboss1|emboss2|identity" > $(BENCH_OUT_DIR)/bench_results.csv
 	python3 benchmarks/plot.py $(BENCH_OUT_DIR)/bench_results.csv $(BENCH_OUT_DIR)
 	rm -rf $(BENCH_OUT_DIR)/bench_out
 

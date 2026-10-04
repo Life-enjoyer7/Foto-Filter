@@ -12,7 +12,7 @@
 #include <sys/types.h>
 #include <time.h>
 
-void testIdentityFilter(void) {
+static void testIdentityFilter(void) {
   printf("\n");
   printf("                        TEST 1: IDENTITY FILTER                      "
          "           \n");
@@ -61,7 +61,7 @@ void testIdentityFilter(void) {
       fflush(stdout);
 
       double start = get_time_ms();
-      pipeline_run(input_paths, output_paths, num_images, 14, s, workers);
+      pipeline_run(input_paths, output_paths, num_images, 14, s, workers, 10);
       results[s][t_idx] = get_time_ms() - start;
 
       for (int j = 0; j < num_images; j++) {
@@ -119,7 +119,7 @@ void testIdentityFilter(void) {
   free(output_paths);
 }
 
-void testShiftComposition(void) {
+static void testShiftComposition(void) {
   printf("\n");
   printf("                        TEST 2: SHIFT COMPOSITION                    "
          "          \n");
@@ -180,9 +180,9 @@ void testShiftComposition(void) {
 
         double start = get_time_ms();
         pipeline_run(input_paths, output_paths, num_images,
-                     filter_indices[comp][0], s, workers);
+                     filter_indices[comp][0], s, workers, 10);
         pipeline_run(output_paths, output_paths, num_images,
-                     filter_indices[comp][1], s, workers);
+                     filter_indices[comp][1], s, workers, 10);
         results[comp][s][t_idx] = get_time_ms() - start;
 
         for (int j = 0; j < num_images; j++) {
@@ -247,7 +247,7 @@ void testShiftComposition(void) {
   free(output_paths);
 }
 
-void testZeroPadding(void) {
+static void testZeroPadding(void) {
   printf("\n");
   printf("                        TEST 3: ZERO PADDING                         "
          "           \n");
@@ -309,7 +309,7 @@ void testZeroPadding(void) {
 
         double start = get_time_ms();
         pipeline_run(input_paths, output_paths, num_images, padded_indices[f],
-                     s, workers);
+                     s, workers, 10);
         results[f][s][t_idx] = get_time_ms() - start;
 
         for (int j = 0; j < num_images; j++) {
@@ -381,7 +381,7 @@ void testZeroPadding(void) {
   free(output_paths);
 }
 
-void testZeroFilter(void) {
+static void testZeroFilter(void) {
   printf("\n");
   printf("                        TEST 4: ZERO FILTER                          "
          "           \n");
@@ -430,7 +430,7 @@ void testZeroFilter(void) {
       fflush(stdout);
 
       double start = get_time_ms();
-      pipeline_run(input_paths, output_paths, num_images, 26, s, workers);
+      pipeline_run(input_paths, output_paths, num_images, 26, s, workers, 10);
       results[s][t_idx] = get_time_ms() - start;
 
       for (int j = 0; j < num_images; j++) {
@@ -501,7 +501,7 @@ void testZeroFilter(void) {
   free(output_paths);
 }
 
-void testRandomizedProperties(void) {
+static void testRandomizedProperties(void) {
   printf("\n");
   printf("                        TEST 5: RANDOMIZED PROPERTIES                "
          "           \n");
@@ -563,7 +563,7 @@ void testRandomizedProperties(void) {
     Filter expectedFilter = filter_by_id(filter_id);
 
     pipeline_run(in_paths, out_paths, num_images, filter_id, strategy_id,
-                 num_workers);
+                 num_workers, 10);
 
     for (int i = 0; i < num_images; i++) {
       IplImage *result = cvLoadImage(out_paths[i], 1);
@@ -589,7 +589,8 @@ void testRandomizedProperties(void) {
     }
 
     for (int s = 0; s < 7; s++) {
-      pipeline_run(in_paths, out_paths, num_images, filter_id, s, num_workers);
+      pipeline_run(in_paths, out_paths, num_images, filter_id, s, num_workers,
+                   10);
 
       for (int i = 0; i < num_images; i++) {
         IplImage *result = cvLoadImage(out_paths[i], 1);
@@ -618,9 +619,9 @@ void testRandomizedProperties(void) {
     int compA = 15 + comp * 2;
     int compB = 16 + comp * 2;
     pipeline_run(in_paths, mid_paths, num_images, compA, strategy_id,
-                 num_workers);
+                 num_workers, 10);
     pipeline_run(mid_paths, mid_paths, num_images, compB, strategy_id,
-                 num_workers);
+                 num_workers, 10);
 
     for (int i = 0; i < num_images; i++) {
       IplImage *result = cvLoadImage(mid_paths[i], 1);
@@ -648,7 +649,7 @@ void testRandomizedProperties(void) {
   printf("  mismatches: %d\n", mismatches);
 }
 
-void testReferenceLibrary(void) {
+static void testReferenceLibrary(void) {
   printf("\n");
   printf("                        TEST 6: REFERENCE LIBRARY (OpenCV filter2D)  "
          "           \n");
@@ -689,7 +690,7 @@ void testReferenceLibrary(void) {
       const char *in_arr[1] = {curated_images[i]};
       const char *out_arr[1] = {out_path};
 
-      pipeline_run(in_arr, out_arr, 1, j, 0, 2);
+      pipeline_run(in_arr, out_arr, 1, j, 0, 2, 10);
 
       IplImage *ours = cvLoadImage(out_path, 1);
       IplImage *reference = referenceApplyFilter(original, &f);
